@@ -1,18 +1,12 @@
 # -*- coding: binary -*-
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-
-require 'msf/core'
-require 'msf/core/handler/bind_tcp'
-require 'msf/core/payload/windows/bind_tcp_rc4'
-
-
 module MetasploitModule
 
-  CachedSize = 402
+  CachedSize = 415
 
   include Msf::Payload::Stager
   include Msf::Payload::Windows::BindTcpRc4
@@ -34,5 +28,4 @@ module MetasploitModule
       'Stager'        => { 'RequiresMidstager' => false }
       ))
   end
-
 end

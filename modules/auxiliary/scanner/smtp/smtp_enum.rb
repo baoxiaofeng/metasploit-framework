@@ -1,16 +1,16 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-
-require 'msf/core'
-
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Exploit::Remote::Smtp
   include Msf::Auxiliary::Report
   include Msf::Auxiliary::Scanner
+
+  Aliases = [
+    'auxiliary/scanner/smtp/enum'
+  ]
 
   def initialize
     super(
@@ -45,7 +45,7 @@ class MetasploitModule < Msf::Auxiliary
             File.join(Msf::Config.install_root, 'data', 'wordlists', 'unix_users.txt')
           ]),
         OptBool.new('UNIXONLY', [ true, 'Skip Microsoft bannered servers when testing unix users', true])
-      ], self.class)
+      ])
 
     deregister_options('MAILTO','MAILFROM')
   end
@@ -213,5 +213,4 @@ class MetasploitModule < Msf::Auxiliary
     save_array = words.split(/\r?\n/)
     return save_array
   end
-
 end

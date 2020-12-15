@@ -1,63 +1,8 @@
 # -*- coding: binary -*-
-require 'msf/core'
 
 module Msf
 
-###
-#
-# Event notifications that affect sessions.
-#
-###
-module SessionEvent
 
-  #
-  # Called when a session is opened.
-  #
-  def on_session_open(session)
-  end
-
-  #
-  # Called when a session is closed.
-  #
-  def on_session_close(session, reason='')
-  end
-
-  #
-  # Called when the user interacts with a session.
-  #
-  def on_session_interact(session)
-  end
-
-  #
-  # Called when the user writes data to a session.
-  #
-  def on_session_command(session, command)
-  end
-
-  #
-  # Called when output comes back from a user command.
-  #
-  def on_session_output(session, output)
-  end
-
-  #
-  # Called when a file is uploaded.
-  #
-  def on_session_upload(session, local_path, remote_path)
-  end
-
-  #
-  # Called when a file is downloaded.
-  #
-  def on_session_download(session, remote_path, local_path)
-  end
-
-  #
-  # Called when a file is deleted.
-  #
-  def on_session_filedelete(session, path)
-  end
-end
 
 ###
 #
@@ -85,16 +30,7 @@ module Session
   end
 
   # Direct descendants
-  require 'msf/core/session/interactive'
-  require 'msf/core/session/basic'
-  require 'msf/core/session/comm'
-
   # Provider interfaces
-  require 'msf/core/session/provider/single_command_execution'
-  require 'msf/core/session/provider/multi_command_execution'
-  require 'msf/core/session/provider/single_command_shell'
-  require 'msf/core/session/provider/multi_command_shell'
-
   def self.type
     "unknown"
   end
@@ -214,8 +150,9 @@ module Session
 
     dstr  = sprintf("%.4d%.2d%.2d", dt.year, dt.mon, dt.mday)
     rhost = session_host.gsub(':', '_')
+    sname = name.to_s.gsub(/\W+/,'_')
 
-    "#{dstr}_#{rhost}_#{type}"
+    "#{dstr}_#{sname}_#{rhost}_#{type}"
   end
 
   #
@@ -283,10 +220,8 @@ module Session
   #
   def cleanup
     if db_record and framework.db.active
-      ::ActiveRecord::Base.connection_pool.with_connection {
-        db_record.closed_at = Time.now.utc
-        # ignore exceptions
-        db_record.save
+      ::ApplicationRecord.connection_pool.with_connection {
+        framework.db.update_session(id: db_record.id, closed_at: Time.now.utc, close_reason: db_record.close_reason)
         db_record = nil
       }
     end
@@ -326,7 +261,14 @@ module Session
   # Get an arch/platform combination
   #
   def session_type
-    "#{self.arch}/#{self.platform}"
+    # avoid unnecessary slash separator
+    if !self.arch.nil? && !self.arch.empty? && !self.platform.nil? && !self.platform.empty?
+      separator =  '/'
+    else
+      separator = ''
+    end
+
+    "#{self.arch}#{separator}#{self.platform}"
   end
 
 

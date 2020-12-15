@@ -1,14 +1,12 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
 require 'metasploit/framework/login_scanner/glassfish'
 require 'metasploit/framework/credential_collection'
 
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Exploit::Remote::HttpClient
   include Msf::Auxiliary::AuthBrute
   include Msf::Auxiliary::Report
@@ -42,7 +40,9 @@ class MetasploitModule < Msf::Auxiliary
         # There is no TARGETURI because when Glassfish is installed, the path is /
         Opt::RPORT(4848),
         OptString.new('USERNAME',[true, 'A specific username to authenticate as','admin']),
-      ], self.class)
+      ])
+
+    deregister_options('PASSWORD_SPRAY')
   end
 
   #
@@ -190,5 +190,4 @@ class MetasploitModule < Msf::Auxiliary
 
     bruteforce(ip) unless @scanner.version.blank?
   end
-
 end

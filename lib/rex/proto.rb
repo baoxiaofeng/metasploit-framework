@@ -8,6 +8,8 @@ require 'rex/proto/iax2'
 require 'rex/proto/kerberos'
 require 'rex/proto/rmi'
 require 'rex/proto/sms'
+require 'rex/proto/mms'
+require 'rex/proto/dns'
 
 module Rex
 module Proto

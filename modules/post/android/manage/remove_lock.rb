@@ -1,9 +1,7 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
-
-require 'msf/core'
 
 class MetasploitModule < Msf::Post
   Rank = NormalRanking
@@ -35,7 +33,7 @@ class MetasploitModule < Msf::Post
         ],
         'SessionTypes'  => [ 'meterpreter', 'shell' ],
         'Platform'       => 'android',
-        'DisclosureDate' => "Oct 11 2013"
+        'DisclosureDate' => '2013-10-11'
       }
     ))
   end
@@ -71,6 +69,5 @@ class MetasploitModule < Msf::Post
       print_error("The Intent could not be started: #{result}")
     end
   end
-
 end
 

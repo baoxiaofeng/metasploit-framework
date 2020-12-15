@@ -1,12 +1,9 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Exploit::Remote::Ftp
   include Msf::Auxiliary::Report
   include Msf::Auxiliary::Scanner
@@ -32,14 +29,14 @@ class MetasploitModule < Msf::Auxiliary
           [ 'EDB', '38340'],
           [ 'CVE', '2015-7601']
         ],
-      'DisclosureDate' => 'Sep 28 2015'
+      'DisclosureDate' => '2015-09-28'
     ))
 
     register_options(
       [
         OptInt.new('DEPTH', [ true, 'Traversal Depth (to reach the root folder)', 32 ]),
-        OptString.new('PATH', [ true, "Path to the file to disclose, releative to the root dir.", 'boot.ini'])
-      ], self.class)
+        OptString.new('PATH', [ true, "Path to the file to disclose, relative to the root dir.", 'boot.ini'])
+      ])
   end
 
   def check_host(ip)
@@ -103,10 +100,10 @@ class MetasploitModule < Msf::Auxiliary
 
     rescue ::Rex::ConnectionRefused, ::Rex::HostUnreachable, ::Rex::ConnectionTimeout => e
       vprint_error(e.message)
-      elog("#{e.class} #{e.message} #{e.backtrace * "\n"}")
+      elog(e)
     rescue ::Timeout::Error, ::Errno::EPIPE => e
       vprint_error(e.message)
-      elog("#{e.class} #{e.message} #{e.backtrace * "\n"}")
+      elog(e)
     ensure
       data_disconnect
       disconnect

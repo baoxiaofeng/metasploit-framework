@@ -1,5 +1,6 @@
 # -*- coding: binary -*-
 require 'rex/post/meterpreter'
+require 'rex/post/meterpreter/extensions/extapi/command_ids'
 
 module Rex
 module Post
@@ -15,28 +16,40 @@ class Console::CommandDispatcher::Extapi::Clipboard
   Klass = Console::CommandDispatcher::Extapi::Clipboard
 
   include Console::CommandDispatcher
+  include Rex::Post::Meterpreter::Extensions::Extapi
 
   #
   # List of supported commands.
   #
   def commands
-    {
-      "clipboard_get_data"       => "Read the target's current clipboard (text, files, images)",
-      "clipboard_set_text"       => "Write text to the target's clipboard",
-      "clipboard_monitor_start"  => "Start the clipboard monitor",
-      "clipboard_monitor_pause"  => "Pause the active clipboard monitor",
-      "clipboard_monitor_resume" => "Resume the paused clipboard monitor",
-      "clipboard_monitor_dump"   => "Dump all captured clipboard content",
-      "clipboard_monitor_purge"  => "Delete all captured cilpboard content without dumping it",
-      "clipboard_monitor_stop"   => "Stop the clipboard monitor"
+    all = {
+      'clipboard_get_data'       => "Read the target's current clipboard (text, files, images)",
+      'clipboard_set_text'       => "Write text to the target's clipboard",
+      'clipboard_monitor_start'  => 'Start the clipboard monitor',
+      'clipboard_monitor_pause'  => 'Pause the active clipboard monitor',
+      'clipboard_monitor_resume' => 'Resume the paused clipboard monitor',
+      'clipboard_monitor_dump'   => 'Dump all captured clipboard content',
+      'clipboard_monitor_purge'  => 'Delete all captured clipboard content without dumping it',
+      'clipboard_monitor_stop'   => 'Stop the clipboard monitor'
     }
+    reqs = {
+      'clipboard_get_data'       => [COMMAND_ID_EXTAPI_CLIPBOARD_GET_DATA],
+      'clipboard_set_text'       => [COMMAND_ID_EXTAPI_CLIPBOARD_SET_DATA],
+      'clipboard_monitor_start'  => [COMMAND_ID_EXTAPI_CLIPBOARD_MONITOR_START],
+      'clipboard_monitor_pause'  => [COMMAND_ID_EXTAPI_CLIPBOARD_MONITOR_PAUSE],
+      'clipboard_monitor_resume' => [COMMAND_ID_EXTAPI_CLIPBOARD_MONITOR_RESUME],
+      'clipboard_monitor_dump'   => [COMMAND_ID_EXTAPI_CLIPBOARD_MONITOR_DUMP],
+      'clipboard_monitor_purge'  => [COMMAND_ID_EXTAPI_CLIPBOARD_MONITOR_PURGE],
+      'clipboard_monitor_stop'   => [COMMAND_ID_EXTAPI_CLIPBOARD_MONITOR_STOP],
+    }
+    filter_commands(all, reqs)
   end
 
   #
   # Name for this dispatcher
   #
   def name
-    "Extapi: Clipboard Management"
+    'Extapi: Clipboard Management'
   end
 
   #

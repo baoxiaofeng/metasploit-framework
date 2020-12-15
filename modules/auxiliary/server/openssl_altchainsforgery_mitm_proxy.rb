@@ -1,13 +1,11 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
 require 'openssl'
 
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Auxiliary::Report
 
   def initialize
@@ -37,7 +35,7 @@ class MetasploitModule < Msf::Auxiliary
       'License' => MSF_LICENSE,
       'Actions'     =>
         [
-          [ 'Service' ]
+          [ 'Service', 'Description' => 'Run MITM proxy' ]
         ],
       'PassiveActions' =>
         [
@@ -60,10 +58,10 @@ class MetasploitModule < Msf::Auxiliary
         OptString.new('PASSPHRASE', [ false, "The pass phrase for the leaf certificate's private key", nil]),
         OptString.new('SUBJECT', [ false, 'The subject field for the fake certificate', '/C=US/ST=California/L=Mountain View/O=Example Inc/CN=*.example.com']),
         OptString.new('HOST', [ true, 'The server address', nil]),
-        OptString.new('PORT', [ true, 'The server port', 443]),
+        OptPort.new('PORT', [ true, 'The server port', 443]),
         OptString.new('SRVHOST', [ true, 'The proxy address', '0.0.0.0']),
         OptString.new('SRVPORT', [ true, 'The proxy port', 443])
-      ], self.class)
+      ])
   end
 
   def cleanup
@@ -224,5 +222,4 @@ class MetasploitModule < Msf::Auxiliary
       end
     end
   end
-
 end

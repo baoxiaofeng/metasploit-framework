@@ -1,9 +1,7 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
-
-require 'msf/core'
 
 class MetasploitModule < Msf::Auxiliary
   include Msf::Auxiliary::Report
@@ -31,7 +29,7 @@ class MetasploitModule < Msf::Auxiliary
           'jhart'
         ],
       'License'        => MSF_LICENSE,
-      'DisclosureDate' => "Dec 9 2014"
+      'DisclosureDate' => '2014-12-09'
     ))
 
     register_options(
@@ -40,7 +38,7 @@ class MetasploitModule < Msf::Auxiliary
         OptString.new('LOCALUSER', [true, 'The user to change password for', 'Administrator']),
         OptString.new('LOCALPASS', [false, 'The password to set for the local user (blank for random)', '']),
         OptString.new('DOMAIN', [false, 'The domain of the user. By default the local user\'s computer name will be autodetected', ''])
-      ], self.class)
+      ])
   end
 
   def localuser

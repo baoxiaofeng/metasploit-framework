@@ -1,9 +1,7 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
-
-require 'msf/core'
 
 class MetasploitModule < Msf::Auxiliary
   include Msf::Exploit::Remote::HttpClient
@@ -30,7 +28,7 @@ class MetasploitModule < Msf::Auxiliary
           ['URL', 'http://tools.cisco.com/security/center/content/CiscoSecurityAdvisory/cisco-sa-20140409-asa'],
           ['URL', 'https://www3.trustwave.com/spiderlabs/advisories/TWSL2014-005.txt']
         ],
-      'DisclosureDate' => 'Apr 09 2014',
+      'DisclosureDate' => '2014-04-09',
       'DefaultOptions' => { 'SSL' => true }
     ))
 
@@ -274,5 +272,4 @@ class MetasploitModule < Msf::Auxiliary
     login_data.merge!(service_data)
     create_credential_login(login_data)
   end
-
 end

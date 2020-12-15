@@ -57,13 +57,14 @@ NTLM_UTILS = Rex::Proto::NTLM::Utils
     self.send_ntlm  = true
 
     # Signing
-    self.sequence_counter = 0
-    self.signing_key      = ''
-    self.require_signing  = false
+    self.sequence_counter     = 0
+    self.signing_key          = ''
+    self.require_signing      = false
+    self.peer_require_signing = false
 
     #Misc
     self.spnopt = {}
-
+    self.default_max_buffer_size = 0xffdf
   end
 
   # Read a SMB packet from the socket
@@ -113,7 +114,6 @@ NTLM_UTILS = Rex::Proto::NTLM::Utils
 
   # Send a SMB packet down the socket
   def smb_send(data, evasion_level=0)
-
     # evasion_level is ignored, since real evasion happens
     # in the actual socket layer
 
@@ -252,6 +252,9 @@ NTLM_UTILS = Rex::Proto::NTLM::Utils
 
         when CONST::SMB_COM_DELETE
           res = smb_parse_delete(pkt, data)
+
+        when CONST::SMB_COM_ECHO
+          res = smb_parse_echo(pkt, data)
 
         else
           raise XCEPT::InvalidCommand
@@ -491,6 +494,19 @@ NTLM_UTILS = Rex::Proto::NTLM::Utils
     raise XCEPT::InvalidWordCount
   end
 
+  # Process incoming SMB_COM_ECHO packets
+  def smb_parse_echo(pkt, data)
+
+    # Process SMB error responses
+    if (pkt['Payload']['SMB'].v['WordCount'] == 1)
+      res = CONST::SMB_ECHO_RES_PKT.make_struct
+      res.from_s(data)
+      return res
+    end
+
+    raise XCEPT::InvalidWordCount
+  end
+
   # Request a SMB session over NetBIOS
   def session_request(name = '*SMBSERVER', do_recv = true)
 
@@ -570,7 +586,8 @@ NTLM_UTILS = Rex::Proto::NTLM::Utils
 
     #set require_signing
     if (ack['Payload'].v['SecurityMode'] & 0x08 != 0)
-      self.require_signing	= true
+      self.require_signing = true
+      self.peer_require_signing = true
     end
 
     # Set the challenge key
@@ -638,7 +655,7 @@ NTLM_UTILS = Rex::Proto::NTLM::Utils
 
     end
 
-    return self.session_setup_clear(*args)
+    return self.session_setup_clear(user, pass, domain)
   end
 
   # Authenticate using clear-text passwords
@@ -661,7 +678,7 @@ NTLM_UTILS = Rex::Proto::NTLM::Utils
 
     pkt['Payload']['SMB'].v['WordCount'] = 10
     pkt['Payload'].v['AndX'] = 255
-    pkt['Payload'].v['MaxBuff'] = 0xffdf
+    pkt['Payload'].v['MaxBuff'] = self.default_max_buffer_size
     pkt['Payload'].v['MaxMPX'] = 2
     pkt['Payload'].v['VCNum'] = 1
     pkt['Payload'].v['PasswordLen'] = pass.length + 1
@@ -736,7 +753,7 @@ NTLM_UTILS = Rex::Proto::NTLM::Utils
     pkt['Payload']['SMB'].v['Flags2'] = 0x2001
     pkt['Payload']['SMB'].v['WordCount'] = 13
     pkt['Payload'].v['AndX'] = 255
-    pkt['Payload'].v['MaxBuff'] = 0xffdf
+    pkt['Payload'].v['MaxBuff'] = self.default_max_buffer_size
     pkt['Payload'].v['MaxMPX'] = 2
     pkt['Payload'].v['VCNum'] = 1
     pkt['Payload'].v['PasswordLenLM'] = hash_lm.length
@@ -791,7 +808,7 @@ NTLM_UTILS = Rex::Proto::NTLM::Utils
     pkt['Payload']['SMB'].v['Flags2'] = 0x2001
     pkt['Payload']['SMB'].v['WordCount'] = 13
     pkt['Payload'].v['AndX'] = 255
-    pkt['Payload'].v['MaxBuff'] = 0xffdf
+    pkt['Payload'].v['MaxBuff'] = self.default_max_buffer_size
     pkt['Payload'].v['MaxMPX'] = 2
     pkt['Payload'].v['VCNum'] = 1
     pkt['Payload'].v['PasswordLenLM'] = hash_lm.length
@@ -824,12 +841,12 @@ NTLM_UTILS = Rex::Proto::NTLM::Utils
   def session_setup_with_ntlmssp(user = '', pass = '', domain = '', name = nil, do_recv = true)
 
     ntlm_options = {
-        :signing 		=> self.require_signing,
-        :usentlm2_session 	=> self.usentlm2_session,
-        :use_ntlmv2 		=> self.use_ntlmv2,
-        :send_lm 		=> self.send_lm,
-        :send_ntlm		=> self.send_ntlm,
-        :use_lanman_key		=> self.use_lanman_key
+        :signing          => self.require_signing,
+        :usentlm2_session => self.usentlm2_session,
+        :use_ntlmv2       => self.use_ntlmv2,
+        :send_lm          => self.send_lm,
+        :send_ntlm        => self.send_ntlm,
+        :use_lanman_key   => self.use_lanman_key
         }
 
     ntlmssp_flags = NTLM_UTILS.make_ntlm_flags(ntlm_options)
@@ -866,7 +883,7 @@ NTLM_UTILS = Rex::Proto::NTLM::Utils
     end
     pkt['Payload']['SMB'].v['WordCount'] = 12
     pkt['Payload'].v['AndX'] = 255
-    pkt['Payload'].v['MaxBuff'] = 0xffdf
+    pkt['Payload'].v['MaxBuff'] = self.default_max_buffer_size
     pkt['Payload'].v['MaxMPX'] = 2
     pkt['Payload'].v['VCNum'] = 1
     pkt['Payload'].v['SecurityBlobLen'] = blob.length
@@ -942,7 +959,7 @@ NTLM_UTILS = Rex::Proto::NTLM::Utils
     pkt['Payload']['SMB'].v['WordCount'] = 12
     pkt['Payload']['SMB'].v['UserID'] = temp_user_id
     pkt['Payload'].v['AndX'] = 255
-    pkt['Payload'].v['MaxBuff'] = 0xffdf
+    pkt['Payload'].v['MaxBuff'] = self.default_max_buffer_size
     pkt['Payload'].v['MaxMPX'] = 2
     pkt['Payload'].v['VCNum'] = 1
     pkt['Payload'].v['Capabilities'] = 0x8000d05c
@@ -998,7 +1015,7 @@ NTLM_UTILS = Rex::Proto::NTLM::Utils
     pkt['Payload']['SMB'].v['WordCount'] = 12
     pkt['Payload']['SMB'].v['UserID'] = userid
     pkt['Payload'].v['AndX'] = 255
-    pkt['Payload'].v['MaxBuff'] = 0xffdf
+    pkt['Payload'].v['MaxBuff'] = self.default_max_buffer_size
     pkt['Payload'].v['MaxMPX'] = 2
     pkt['Payload'].v['VCNum'] = 1
     pkt['Payload'].v['SecurityBlobLen'] = blob.length
@@ -1034,7 +1051,7 @@ NTLM_UTILS = Rex::Proto::NTLM::Utils
     pkt['Payload']['SMB'].v['Flags2'] = 0x2801
     pkt['Payload']['SMB'].v['WordCount'] = 12
     pkt['Payload'].v['AndX'] = 255
-    pkt['Payload'].v['MaxBuff'] = 0xffdf
+    pkt['Payload'].v['MaxBuff'] = self.default_max_buffer_size
     pkt['Payload'].v['MaxMPX'] = 2
     pkt['Payload'].v['VCNum'] = 1
     pkt['Payload'].v['SecurityBlobLen'] = blob.length
@@ -1480,7 +1497,7 @@ NTLM_UTILS = Rex::Proto::NTLM::Utils
   # Perform a transaction against a given pipe name
   # Difference from trans: sets MaxParam/MaxData to zero
   # This is required to trigger mailslot bug :-(
-  def trans_maxzero(pipe, param = '', body = '', setup_count = 0, setup_data = '', no_response = false, do_recv = true)
+  def trans_maxzero(pipe, param = '', body = '', setup_count = 0, setup_data = '', no_response = false, do_recv = true, ignore_errors = false)
 
     # Null-terminate the pipe parameter if needed
     if (pipe[-1] != 0)
@@ -1550,7 +1567,7 @@ NTLM_UTILS = Rex::Proto::NTLM::Utils
     ret = self.smb_send(pkt.to_s)
     return ret if no_response or not do_recv
 
-    self.smb_recv_parse(CONST::SMB_COM_TRANSACTION)
+    self.smb_recv_parse(CONST::SMB_COM_TRANSACTION, ignore_errors)
   end
 
 
@@ -2038,11 +2055,37 @@ NTLM_UTILS = Rex::Proto::NTLM::Utils
     resp
   end
 
+
+  # Send SMB echo request
+  def echo(do_recv = true)
+
+    pkt = CONST::SMB_ECHO_RES_PKT.make_struct
+    self.smb_defaults(pkt['Payload']['SMB'])
+
+    pkt['Payload']['SMB'].v['Command'] = CONST::SMB_COM_ECHO
+    pkt['Payload']['SMB'].v['Flags1'] = 18
+    if self.require_signing
+      pkt['Payload']['SMB'].v['Flags2'] = 0x2807
+    else
+      pkt['Payload']['SMB'].v['Flags2'] =  0x2801
+    end
+
+    pkt['Payload']['SMB'].v['TreeID'] = self.last_tree_id || 0xffff
+    pkt['Payload']['SMB'].v['WordCount'] = 1
+    pkt['Payload'].v['EchoCount'] = 1
+
+    ret = self.smb_send(pkt.to_s)
+    return ret if not do_recv
+    return self.smb_recv_parse(CONST::SMB_COM_ECHO)
+  end
+
+
 # public read/write methods
-  attr_accessor	:native_os, :native_lm, :encrypt_passwords, :extended_security, :read_timeout, :evasion_opts
-  attr_accessor	:verify_signature, :use_ntlmv2, :usentlm2_session, :send_lm, :use_lanman_key, :send_ntlm
+  attr_accessor :native_os, :native_lm, :encrypt_passwords, :extended_security, :read_timeout, :evasion_opts
+  attr_accessor :verify_signature, :use_ntlmv2, :usentlm2_session, :send_lm, :use_lanman_key, :send_ntlm
   attr_accessor :system_time, :system_zone
   attr_accessor :spnopt
+  attr_accessor :default_max_buffer_size
 
 # public read methods
   attr_reader		:dialect, :session_id, :challenge_key, :peer_native_lm, :peer_native_os
@@ -2050,7 +2093,7 @@ NTLM_UTILS = Rex::Proto::NTLM::Utils
   attr_reader		:multiplex_id, :last_tree_id, :last_file_id, :process_id, :last_search_id
   attr_reader		:dns_host_name, :dns_domain_name
   attr_reader		:security_mode, :server_guid
-  attr_reader		:sequence_counter,:signing_key, :require_signing
+  attr_reader		:sequence_counter,:signing_key, :require_signing, :peer_require_signing
 
 # private write methods
   attr_writer		:dialect, :session_id, :challenge_key, :peer_native_lm, :peer_native_os
@@ -2058,7 +2101,7 @@ NTLM_UTILS = Rex::Proto::NTLM::Utils
   attr_writer		:dns_host_name, :dns_domain_name
   attr_writer		:multiplex_id, :last_tree_id, :last_file_id, :process_id, :last_search_id
   attr_writer		:security_mode, :server_guid
-  attr_writer		:sequence_counter,:signing_key, :require_signing
+  attr_writer		:sequence_counter,:signing_key, :require_signing, :peer_require_signing
 
   attr_accessor	:socket
 

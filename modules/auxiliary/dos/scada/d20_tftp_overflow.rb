@@ -1,5 +1,5 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
@@ -13,7 +13,6 @@
 ##
 
 
-require 'msf/core'
 require 'rex/ui/text/shell'
 require 'rex/proto/tftp'
 
@@ -41,15 +40,15 @@ class MetasploitModule < Msf::Auxiliary
         [
           [ 'URL', 'http://www.digitalbond.com/tools/basecamp/metasploit-modules/' ]
         ],
-      'DisclosureDate' => 'Jan 19 2012'
+      'DisclosureDate' => '2012-01-19'
       ))
 
     register_options(
       [
-        OptAddress.new('LHOST', [false, "The local IP address to bind to"]),
+        OptAddressLocal.new('LHOST', [false, "The local IP address to bind to"]),
         OptInt.new('RECV_TIMEOUT', [false, "Time (in seconds) to wait between packets", 3]),
         Opt::RPORT(69)
-      ], self.class)
+      ])
   end
 
   def run
@@ -133,5 +132,4 @@ class MetasploitModule < Msf::Auxiliary
       "\x80\x80\x81\xFA\x80\x80\x81\xFB\x80\x80\x81\xFC\x80\x80\x81\xFD\x80\x80\x81\xFE" +
       "\x80\x80\x82\x80\x80\x80\x82\x81"
   end
-
 end

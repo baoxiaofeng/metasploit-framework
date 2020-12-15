@@ -1,10 +1,8 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-require 'msf/core/payload/generic'
 
 module MetasploitModule
 
@@ -31,7 +29,7 @@ module MetasploitModule
       [
         OptString.new('PAYLOADFILE', [ false, "The file to read the payload from" ] ),
         OptString.new('PAYLOADSTR', [ false, "The string to use as a payload" ] )
-      ], self.class)
+      ])
   end
 
   #
@@ -61,5 +59,4 @@ module MetasploitModule
 
     return encoders2
   end
-
 end

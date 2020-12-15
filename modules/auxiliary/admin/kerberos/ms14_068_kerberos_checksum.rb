@@ -1,13 +1,9 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-require 'rex'
-
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Auxiliary::Report
   include Msf::Exploit::Remote::Kerberos::Client
 
@@ -36,10 +32,10 @@ class MetasploitModule < Msf::Auxiliary
           ['URL', 'http://blogs.technet.com/b/srd/archive/2014/11/18/additional-information-about-cve-2014-6324.aspx'],
           ['URL', 'https://labs.mwrinfosecurity.com/blog/2014/12/16/digging-into-ms14-068-exploitation-and-defence/'],
           ['URL', 'https://github.com/bidord/pykek'],
-          ['URL', 'https://community.rapid7.com/community/metasploit/blog/2014/12/25/12-days-of-haxmas-ms14-068-now-in-metasploit']
+          ['URL', 'https://blog.rapid7.com/2014/12/25/12-days-of-haxmas-ms14-068-now-in-metasploit']
         ],
       'License' => MSF_LICENSE,
-      'DisclosureDate' => 'Nov 18 2014'
+      'DisclosureDate' => '2014-11-18'
     ))
 
     register_options(
@@ -48,7 +44,7 @@ class MetasploitModule < Msf::Auxiliary
         OptString.new('PASSWORD', [ true, 'The Domain User password' ]),
         OptString.new('DOMAIN', [ true, 'The Domain (upper case) Ex: DEMO.LOCAL' ]),
         OptString.new('USER_SID', [ true, 'The Domain User SID, Ex: S-1-5-21-1755879683-3641577184-3486455962-1000'])
-      ], self.class)
+      ])
   end
 
   def run

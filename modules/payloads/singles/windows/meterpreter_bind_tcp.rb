@@ -1,19 +1,15 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-require 'msf/core/payload/transport_config'
-require 'msf/core/handler/bind_tcp'
-require 'msf/core/payload/windows/meterpreter_loader'
 require 'msf/base/sessions/meterpreter_x86_win'
 require 'msf/base/sessions/meterpreter_options'
 require 'rex/payloads/meterpreter/config'
 
 module MetasploitModule
 
-  CachedSize = 957487
+  CachedSize = 175174
 
   include Msf::Payload::TransportConfig
   include Msf::Payload::Windows
@@ -37,7 +33,7 @@ module MetasploitModule
     register_options([
       OptString.new('EXTENSIONS', [false, 'Comma-separate list of extensions to load']),
       OptString.new('EXTINIT',    [false, 'Initialization strings for extensions'])
-    ], self.class)
+    ])
   end
 
   def generate(opts={})
@@ -56,7 +52,8 @@ module MetasploitModule
       uuid:       opts[:uuid],
       transports: [transport_config_bind_tcp(opts)],
       extensions: (datastore['EXTENSIONS'] || '').split(','),
-      ext_init:   (datastore['EXTINIT'] || '')
+      ext_init:   (datastore['EXTINIT'] || ''),
+      stageless:  true
     }
 
     # create the configuration instance based off the parameters
@@ -65,6 +62,5 @@ module MetasploitModule
     # return the binary version of it
     config.to_b
   end
-
 end
 

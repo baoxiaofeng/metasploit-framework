@@ -1,12 +1,9 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Exploit::Remote::SNMPClient
   include Msf::Auxiliary::Report
   include Msf::Auxiliary::Scanner
@@ -175,10 +172,10 @@ class MetasploitModule < Msf::Auxiliary
 
         ifindex  = index.value
         ifdescr  = descr.value
-        ifmac    = mac.value.unpack("H2H2H2H2H2H2").join(":")
+        ifmac    = mac.value.to_s =~ /noSuchInstance/ ? 'unknown' : mac.value.unpack("H2H2H2H2H2H2").join(":")
         iftype   = type.value
         ifmtu    = mtu.value
-        ifspeed  = speed.value.to_i
+        ifspeed  = speed.value.to_s =~ /noSuchInstance/ ? 'unknown' : speed.value.to_i / 1000000
         ifinoc   = inoc.value
         ifoutoc  = outoc.value
         ifstatus = status.value
@@ -262,8 +259,6 @@ class MetasploitModule < Msf::Auxiliary
         else
           ifstatus = "unknown"
         end
-
-        ifspeed = ifspeed / 1000000
 
         network_interfaces.push({
           "Interface" => "[ #{ifstatus} ] #{ifdescr}",
@@ -874,8 +869,7 @@ class MetasploitModule < Msf::Auxiliary
       raise $!
     rescue ::Exception => e
       print_error("Unknown error: #{e.class} #{e}")
-      elog("Unknown error: #{e.class} #{e}")
-      elog("Call stack:\n#{e.backtrace.join "\n"}")
+      elog(e)
     ensure
       disconnect_snmp
     end

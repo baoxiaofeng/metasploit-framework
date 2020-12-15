@@ -1,12 +1,9 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Exploit::Remote::HttpServer::HTML
   include Msf::Exploit::JSObfu
   include Msf::Auxiliary::Report
@@ -41,7 +38,7 @@ class MetasploitModule < Msf::Auxiliary
         [ 'URL', 'http://trac.webkit.org/changeset/96826' ]
       ],
       'DefaultAction'  => 'WebServer',
-      'DisclosureDate' => "Oct 4 2014"
+      'DisclosureDate' => '2014-10-04'
     ))
 
     register_options([
@@ -60,7 +57,7 @@ class MetasploitModule < Msf::Auxiliary
         "A URL to inject into a script tag in the context of the target URLs.",
         ''
       ])
-    ], self.class)
+    ])
   end
 
   def on_request_uri(cli, request)
@@ -144,5 +141,4 @@ class MetasploitModule < Msf::Auxiliary
   def run
     exploit
   end
-
 end

@@ -1,13 +1,9 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-require 'msf/core/payload/windows/exec'
-require 'msf/core/payload/windows/powershell'
 require 'msf/base/sessions/powershell'
-require 'msf/core/handler/bind_tcp'
 
 ###
 #
@@ -16,7 +12,7 @@ require 'msf/core/handler/bind_tcp'
 ###
 module MetasploitModule
 
-  CachedSize = 1703
+  CachedSize = 1738
 
   include Msf::Payload::Windows::Exec
   include Rex::Powershell::Command
@@ -45,8 +41,8 @@ module MetasploitModule
     # Register command execution options
     register_options(
       [
-        OptString.new('LOAD_MODULES', [ false, "A list of powershell modules seperated by a comma to download over the web", nil ]),
-      ], self.class)
+        OptString.new('LOAD_MODULES', [ false, "A list of powershell modules separated by a comma to download over the web", nil ]),
+      ])
     # Hide the CMD option...this is kinda ugly
     deregister_options('CMD')
   end
@@ -54,7 +50,7 @@ module MetasploitModule
   #
   # Override the exec command string
   #
-  def command_string
+  def powershell_command
     generate_powershell_code("Bind")
   end
 end

@@ -1,10 +1,5 @@
 # -*- coding: binary -*-
 
-require 'msf/core'
-require 'msf/core/payload/transport_config'
-require 'msf/core/payload/windows/bind_tcp'
-require 'msf/core/payload/windows/rc4'
-
 module Msf
 
 ###
@@ -33,7 +28,7 @@ module Payload::Windows::BindTcpRc4
 
     # Generate the more advanced stager if we have the space
     if self.available_space && required_space <= self.available_space
-      conf[:exitfunk] = datastore['EXITFUNC'],
+      conf[:exitfunk] = datastore['EXITFUNC']
       conf[:reliable] = true
     end
 

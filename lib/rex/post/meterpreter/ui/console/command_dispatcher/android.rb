@@ -1,6 +1,6 @@
 # -*- coding: binary -*-
 require 'rex/post/meterpreter'
-require 'msf/core/auxiliary/report'
+require 'rex/post/meterpreter/extensions/android/command_ids'
 require 'rex/google/geolocation'
 require 'date'
 
@@ -13,8 +13,10 @@ module Ui
 # extension by Anwar Mohamed (@anwarelmakrahy)
 ###
 class Console::CommandDispatcher::Android
+
   include Console::CommandDispatcher
   include Msf::Auxiliary::Report
+  include Rex::Post::Meterpreter::Extensions::Android
 
   #
   # List of supported commands.
@@ -36,28 +38,23 @@ class Console::CommandDispatcher::Android
       'set_audio_mode'    => 'Set Ringer Mode',
       'wakelock'          => 'Enable/Disable Wakelock',
     }
-
     reqs = {
-      'dump_sms'         => ['android_dump_sms'],
-      'dump_contacts'    => ['android_dump_contacts'],
-      'geolocate'        => ['android_geolocate'],
-      'dump_calllog'     => ['android_dump_calllog'],
-      'check_root'       => ['android_check_root'],
-      'device_shutdown'  => ['android_device_shutdown'],
-      'send_sms'         => ['android_send_sms'],
-      'wlan_geolocate'   => ['android_wlan_geolocate'],
-      'interval_collect' => ['android_interval_collect'],
-      'activity_start'   => ['android_activity_start'],
-      'hide_app_icon'    => ['android_hide_app_icon'],
-      'sqlite_query'     => ['android_sqlite_query'],
-      'set_audio_mode'   => ['android_set_audio_mode'],
-      'wakelock'         => ['android_wakelock'],
+      'dump_sms'         => [COMMAND_ID_ANDROID_DUMP_SMS],
+      'dump_contacts'    => [COMMAND_ID_ANDROID_DUMP_CONTACTS],
+      'geolocate'        => [COMMAND_ID_ANDROID_GEOLOCATE],
+      'dump_calllog'     => [COMMAND_ID_ANDROID_DUMP_CALLLOG],
+      'check_root'       => [COMMAND_ID_ANDROID_CHECK_ROOT],
+      'device_shutdown'  => [COMMAND_ID_ANDROID_DEVICE_SHUTDOWN],
+      'send_sms'         => [COMMAND_ID_ANDROID_SEND_SMS],
+      'wlan_geolocate'   => [COMMAND_ID_ANDROID_WLAN_GEOLOCATE],
+      'interval_collect' => [COMMAND_ID_ANDROID_INTERVAL_COLLECT],
+      'activity_start'   => [COMMAND_ID_ANDROID_ACTIVITY_START],
+      'hide_app_icon'    => [COMMAND_ID_ANDROID_HIDE_APP_ICON],
+      'sqlite_query'     => [COMMAND_ID_ANDROID_SQLITE_QUERY],
+      'set_audio_mode'   => [COMMAND_ID_ANDROID_SET_AUDIO_MODE],
+      'wakelock'         => [COMMAND_ID_ANDROID_WAKELOCK],
     }
-
-    # Ensure any requirements of the command are met
-    all.delete_if do |cmd, _desc|
-      reqs[cmd].any? { |req| !client.commands.include?(req) }
-    end
+    filter_commands(all, reqs)
   end
 
   def interval_collect_usage
@@ -99,7 +96,7 @@ class Console::CommandDispatcher::Android
         return
       end
 
-      type = args.shift.downcase
+      args.shift.downcase
 
       unless client.android.collect_types.include?(opts[:type])
         interval_collect_usage
@@ -390,7 +387,6 @@ class Console::CommandDispatcher::Android
   end
 
   def cmd_geolocate(*args)
-
     generate_map = false
     geolocate_opts = Rex::Parser::Arguments.new(
       '-h' => [ false, 'Help Banner' ],
@@ -428,10 +424,8 @@ class Console::CommandDispatcher::Android
   def cmd_dump_calllog(*args)
     path = "calllog_dump_#{Time.new.strftime('%Y%m%d%H%M%S')}.txt"
     dump_calllog_opts = Rex::Parser::Arguments.new(
-
       '-h' => [ false, 'Help Banner' ],
       '-o' => [ true, 'Output path for call log']
-
     )
 
     dump_calllog_opts.parse(args) do |opt, _idx, val|
@@ -517,7 +511,7 @@ class Console::CommandDispatcher::Android
       '-h' => [ false, 'Help Banner' ],
       '-d' => [ true, 'Destination number' ],
       '-t' => [ true, 'SMS body text' ],
-      '-dr' => [ false, 'Wait for delivery report' ]
+      '-r' => [ false, 'Wait for delivery report' ]
     )
 
     dest = ''
@@ -535,7 +529,9 @@ class Console::CommandDispatcher::Android
         dest = val
       when '-t'
         body = val
-      when '-dr'
+        # Replace \n with a newline character to allow multi-line messages
+        body.gsub!('\n',"\n")
+      when '-r'
         dr = true
       end
     end
@@ -570,17 +566,28 @@ class Console::CommandDispatcher::Android
 
   def cmd_wlan_geolocate(*args)
     wlan_geolocate_opts = Rex::Parser::Arguments.new(
-      '-h' => [ false, 'Help Banner' ]
+      '-h' => [ false, 'Help Banner' ],
+      '-a' => [ true, 'API key' ],
     )
 
-    wlan_geolocate_opts.parse(args) do |opt, _idx, _val|
+    api_key = ''
+    wlan_geolocate_opts.parse(args) do |opt, _idx, val|
       case opt
       when '-h'
         print_line('Usage: wlan_geolocate')
         print_line('Tries to get device geolocation from WLAN information and Google\'s API')
         print_line(wlan_geolocate_opts.usage)
         return
+      when '-a'
+        api_key = val
       end
+    end
+
+    if api_key.blank?
+      print_error("You must enter an api_key")
+      print_error("e.g. wlan_geolocate -a YOUR_API_KEY")
+      print_line(wlan_geolocate_opts.usage)
+      return
     end
 
     log = client.android.wlan_geolocate
@@ -597,9 +604,10 @@ class Console::CommandDispatcher::Android
       return
     end
     g = Rex::Google::Geolocation.new
+    g.set_api_key(api_key)
 
     wlan_list.each do |wlan|
-      g.add_wlan(*wlan)
+      g.add_wlan(wlan[0], wlan[2]) # bssid, signalstrength
     end
     begin
       g.fetch!
@@ -607,7 +615,7 @@ class Console::CommandDispatcher::Android
       print_error("Error: #{e}")
     else
       print_status(g.to_s)
-      print_status("Google Maps URL:  #{g.google_maps_url}")
+      print_status("Google Maps URL: #{g.google_maps_url}")
     end
   end
 
@@ -701,6 +709,7 @@ class Console::CommandDispatcher::Android
     wakelock_opts = Rex::Parser::Arguments.new(
       '-h' => [ false, 'Help Banner' ],
       '-r' => [ false, 'Release wakelock' ],
+      '-w' => [ false, 'Turn screen on' ],
       '-f' => [ true, 'Advanced Wakelock flags (e.g 268435456)' ],
     )
 
@@ -713,6 +722,9 @@ class Console::CommandDispatcher::Android
         return
       when '-r'
         flags = 0
+      when '-w'
+        client.android.wakelock(0)
+        flags = 268435482
       when '-f'
         flags = val.to_i
       end

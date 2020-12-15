@@ -45,7 +45,7 @@ module SingleCommandShell
   def shell_read_until_token(token, wanted_idx=0, timeout=10)
     return if timeout.to_i == 0
 
-    if (wanted_idx == 0)
+    if wanted_idx == 0
       parts_needed = 2
     else
       parts_needed = 1 + (wanted_idx * 2)
@@ -57,12 +57,13 @@ module SingleCommandShell
         buf = ''
         idx = nil
         loop do
-          if (tmp = shell_read(-1, 2))
+          if (tmp = shell_read(-1))
             buf << tmp
 
             # see if we have the wanted idx
             parts = buf.split(token, -1)
-            if (parts.length == parts_needed)
+
+            if parts.length == parts_needed
               # cause another prompt to appear (just in case)
               shell_write("\n")
               return parts[wanted_idx]
@@ -130,7 +131,10 @@ module SingleCommandShell
     # Send the command to the session's stdin.
     # NOTE: if the session echoes input we don't need to echo the token twice.
     shell_write(cmd + "&echo #{token}\n")
-    shell_read_until_token(token, 1, timeout)
+    res = shell_read_until_token(token, 1, timeout)
+    # I would like a better way to do this, but I don't know of one
+    res.reverse!.chomp!.reverse! # the presence of a leading newline is not consistent
+    res
   end
 
 

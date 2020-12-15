@@ -1,12 +1,9 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Exploit::Capture
   include Msf::Auxiliary::Scanner
 
@@ -32,13 +29,12 @@ class MetasploitModule < Msf::Auxiliary
           [ 'OSVDB', '60847' ],
           [ 'URL', 'https://support.ntp.org/bugs/show_bug.cgi?id=1331' ]
         ],
-      'DisclosureDate' => 'Oct 04 2009'))
+      'DisclosureDate' => '2009-10-04'))
 
       register_options(
         [
-          OptAddress.new('LHOST', [true, "The spoofed address of a vulnerable ntpd server" ])
-        ], self.class)
-
+          OptAddressLocal.new('LHOST', [true, "The spoofed address of a vulnerable ntpd server" ])
+        ])
       deregister_options('FILTER','PCAPFILE')
 
   end
@@ -60,5 +56,4 @@ class MetasploitModule < Msf::Auxiliary
 
     close_pcap
   end
-
 end

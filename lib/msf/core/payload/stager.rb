@@ -1,8 +1,4 @@
 # -*- coding: binary -*-
-require 'msf/core'
-require 'msf/core/option_container'
-require 'msf/core/payload/transport_config'
-
 ###
 #
 # Base mixin interface for use by stagers.
@@ -156,6 +152,18 @@ module Msf::Payload::Stager
     return raw
   end
 
+  def sends_hex_uuid?
+    false
+  end
+
+  def format_uuid(uuid_raw)
+    if sends_hex_uuid?
+      return uuid_raw
+    end
+
+    return Msf::Payload::UUID.new({raw: uuid_raw})
+  end
+
   #
   # Transmit the associated stage.
   #
@@ -165,13 +173,11 @@ module Msf::Payload::Stager
     # If the stage should be sent over the client connection that is
     # established (which is the default), then go ahead and transmit it.
     if (stage_over_connection?)
-      opts = {}
-
       if respond_to? :include_send_uuid
         if include_send_uuid
           uuid_raw = conn.get_once(16, 1)
           if uuid_raw
-            opts[:uuid] = Msf::Payload::UUID.new({raw: uuid_raw})
+            opts[:uuid] = format_uuid(uuid_raw)
           end
         end
       end
@@ -215,15 +221,6 @@ module Msf::Payload::Stager
 
       # Send the stage
       conn.put(p)
-    end
-
-    # If the stage implements the handle connection method, sleep before
-    # handling it.
-    if (derived_implementor?(Msf::Payload::Stager, 'handle_connection_stage'))
-      print_status("Sleeping before handling stage...")
-
-      # Sleep before processing the stage
-      Rex::ThreadSafe.sleep(1.5)
     end
 
     # Give the stages a chance to handle the connection

@@ -1,11 +1,8 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
-require 'msf/core'
-require 'msf/core/payload/android'
-require 'msf/core/payload/transport_config'
-require 'msf/core/handler/reverse_tcp'
+
 require 'msf/base/sessions/meterpreter_android'
 require 'msf/base/sessions/meterpreter_options'
 require 'rex/payloads/meterpreter/config'
@@ -43,5 +40,4 @@ module MetasploitModule
     opts[:stageless] = true
     super(opts)
   end
-
 end

@@ -1,9 +1,7 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
-
-require 'msf/core'
 
 class MetasploitModule < Msf::Auxiliary
   include Msf::Auxiliary::Redis
@@ -32,7 +30,7 @@ class MetasploitModule < Msf::Auxiliary
           ['URL', 'http://redis.io/topics/protocol']
         ],
         'Privileged'    => true,
-        'DisclosureDate' => 'Nov 11 2015'
+        'DisclosureDate' => '2015-11-11'
       )
     )
 

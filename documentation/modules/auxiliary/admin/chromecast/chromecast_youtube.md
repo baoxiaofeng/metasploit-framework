@@ -2,9 +2,11 @@ This module plays (by default) ["Epic sax guy 10 hours"](https://www.youtube.com
 
 Naturally, audio should be cranked to 11 before running this module.
 
+Only the deprecated DIAL protocol is supported by this module. Casting via the newer CASTV2 protocol is unsupported at this time.
+
 ## Verification Steps
 
-1. Do: ```use auxiliary/scanner/http/chromecast_webserver ```
+1. Do: ```use auxiliary/admin/chromecast/chromecast_youtube```
 2. Do: ```set RHOST [IP]```
 3. Do: ```run```
 
@@ -14,9 +16,9 @@ Naturally, audio should be cranked to 11 before running this module.
 
   The YouTube video to be played.  Defaults to [kxopViU98Xo](https://www.youtube.com/watch?v=kxopViU98Xo)
 
-## Sample Output
+## Scenarios
 
-Of note, this was played on a 1st generation Google Chromecast (USB stick looking, not circular)
+### 1st generation Google Chromecast (USB stick looking, not circular)
 
 ```
 msf > auxiliary/admin/chromecast/chromecast_youtube

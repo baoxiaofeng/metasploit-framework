@@ -3,7 +3,6 @@
 require 'rex/post/meterpreter/packet_response_waiter'
 require 'rex/logging'
 require 'rex/exceptions'
-require 'msf/core/payload/uuid'
 
 module Rex
 module Post
@@ -57,6 +56,11 @@ module PacketDispatcher
   # active migration. Unused if this is a passive dispatcher
   attr_accessor :comm_mutex
 
+  # The guid that identifies an active Meterpreter session
+  attr_accessor :session_guid
+
+  # This contains the key material used for TLV encryption
+  attr_accessor :tlv_enc_key
 
   # Passive Dispatching
   #
@@ -71,74 +75,27 @@ module PacketDispatcher
   attr_accessor :recv_queue
 
   def initialize_passive_dispatcher
-    self.send_queue = []
-    self.recv_queue = []
-    self.waiters    = []
-    self.alive      = true
-
-    # Ensure that there is only one leading and trailing slash on the URI
-    resource_uri = "/" + self.conn_id.to_s.gsub(/(^\/|\/$)/, '') + "/"
-
-    self.passive_service = self.passive_dispatcher
-    self.passive_service.remove_resource(resource_uri)
-    self.passive_service.add_resource(resource_uri,
-      'Proc'             => Proc.new { |cli, req| on_passive_request(cli, req) },
-      'VirtualDirectory' => true
-    )
+    self.send_queue   = []
+    self.recv_queue   = []
+    self.waiters      = []
+    self.alive        = true
   end
 
   def shutdown_passive_dispatcher
-    return if not self.passive_service
-
-    # Ensure that there is only one leading and trailing slash on the URI
-    resource_uri = "/" + self.conn_id.to_s.gsub(/(^\/|\/$)/, '') + "/"
-
-    self.passive_service.remove_resource(resource_uri)
-
-    # If there are no more resources registered on the service, stop it entirely
-    if self.passive_service.resources.empty?
-      Rex::ServiceManager.stop_service(self.passive_service)
-    end
-
     self.alive      = false
     self.send_queue = []
     self.recv_queue = []
     self.waiters    = []
-
-    self.passive_service = nil
   end
 
   def on_passive_request(cli, req)
-
     begin
-
-    resp = Rex::Proto::Http::Response.new(200, "OK")
-    resp['Content-Type'] = 'application/octet-stream'
-    resp['Connection']   = 'close'
-
-    self.last_checkin = Time.now
-
-    if req.method == 'GET'
-      rpkt = send_queue.shift
-      resp.body = rpkt || ''
-      begin
-        cli.send_response(resp)
-      rescue ::Exception => e
-        send_queue.unshift(rpkt) if rpkt
-        elog("Exception sending a reply to the reader request: #{cli.inspect} #{e.class} #{e} #{e.backtrace}")
-      end
-    else
-      resp.body = ""
-      if req.body and req.body.length > 0
-        packet = Packet.new(0)
-        packet.from_r(req.body)
-        dispatch_inbound_packet(packet)
-      end
+      self.last_checkin = Time.now
+      resp = send_queue.shift
       cli.send_response(resp)
-    end
-
-    rescue ::Exception => e
-      elog("Exception handling request: #{cli.inspect} #{req.inspect} #{e.class} #{e} #{e.backtrace}")
+    rescue => e
+      send_queue.unshift(resp) if resp
+      elog("Exception sending a reply to the reader request #{cli.inspect}", error: e)
     end
   end
 
@@ -151,13 +108,31 @@ module PacketDispatcher
   #
   # Sends a packet without waiting for a response.
   #
-  def send_packet(packet, completion_routine = nil, completion_param = nil)
-    if (completion_routine)
-      add_response_waiter(packet, completion_routine, completion_param)
+  def send_packet(packet, opts={})
+    if self.pivot_session
+      opts[:session_guid] = self.session_guid
+      opts[:tlv_enc_key] = self.tlv_enc_key
+      return self.pivot_session.send_packet(packet, opts)
     end
 
+    if opts[:completion_routine]
+      add_response_waiter(packet, opts[:completion_routine], opts[:completion_param])
+    end
+
+    session_guid = self.session_guid
+    tlv_enc_key = self.tlv_enc_key
+
+    # if a session guid is provided, use all the details provided
+    if opts[:session_guid]
+      session_guid = opts[:session_guid]
+      tlv_enc_key = opts[:tlv_enc_key]
+    end
+
+    # Uncomment this line if you want to see outbound packets in the console.
+    #STDERR.puts("SEND: #{packet.inspect}\n")
+
     bytes = 0
-    raw   = packet.to_r
+    raw   = packet.to_r(session_guid, tlv_enc_key)
     err   = nil
 
     # Short-circuit send when using a passive dispatcher
@@ -166,8 +141,7 @@ module PacketDispatcher
       return raw.size # Lie!
     end
 
-    if (raw)
-
+    if raw
       self.comm_mutex.synchronize do
         begin
           bytes = self.sock.write(raw)
@@ -271,7 +245,7 @@ module PacketDispatcher
         self.alive = false
       end
     else
-      pkt = Packet.create_request('core_channel_eof')
+      pkt = Packet.create_request(COMMAND_ID_CORE_CHANNEL_EOF)
       pkt.add_tlv(TLV_TYPE_CHANNEL_ID, 0)
       add_response_waiter(pkt, Proc.new { @ping_sent = false })
       send_packet(pkt)
@@ -285,16 +259,20 @@ module PacketDispatcher
   #
   ##
 
-  #
-  # Simple class to track packets and if they are in-progress or complete.
-  #
-  class QueuedPacket
-    attr_reader :packet
-    attr_reader :in_progress
-
-    def initialize(packet, in_progress)
-      @packet = packet
-      @in_progress = in_progress
+  def pivot_keepalive_start
+    return unless self.send_keepalives
+    self.receiver_thread = Rex::ThreadFactory.spawn("PivotKeepalive", false) do
+      while self.alive
+        begin
+          Rex::sleep(PING_TIME)
+          keepalive
+        rescue ::Exception => e
+          dlog("Exception caught in pivot keepalive: #{e.class}: #{e}", 'meterpreter', LEV_1)
+          dlog("Call stack: #{e.backtrace.join("\n")}", 'meterpreter', LEV_2)
+          self.alive = false
+          break
+        end
+      end
     end
   end
 
@@ -307,11 +285,18 @@ module PacketDispatcher
     # Skip if we are using a passive dispatcher
     return if self.passive_service
 
+    # redirect to pivot keepalive if we're a pivot session
+    return pivot_keepalive_start if self.pivot_session
+
     self.comm_mutex = ::Mutex.new
 
     self.waiters = []
 
-    @pqueue = ::Queue.new
+    # This queue is where the new incoming packets end up
+    @new_packet_queue = ::Queue.new
+    # This is where we put packets that aren't new, but haven't
+    # yet been handled.
+    @incomplete_queue = ::Queue.new
     @ping_sent = false
 
     # Spawn a thread for receiving packets
@@ -320,9 +305,10 @@ module PacketDispatcher
         begin
           rv = Rex::ThreadSafe.select([ self.sock.fd ], nil, nil, PING_TIME)
           if rv
-            packet, in_progress = receive_packet
-            @pqueue << QueuedPacket.new(packet, in_progress)
-          elsif self.send_keepalives && @pqueue.empty?
+            packet = receive_packet
+            # Always enqueue the new packets onto the new packet queue
+            @new_packet_queue << decrypt_inbound_packet(packet) if packet
+          elsif self.send_keepalives && @new_packet_queue.empty?
             keepalive
           end
         rescue ::Exception => e
@@ -338,12 +324,34 @@ module PacketDispatcher
     self.dispatcher_thread = Rex::ThreadFactory.spawn("MeterpreterDispatcher", false) do
       begin
       while (self.alive)
+        # This is where we'll store incomplete packets on
+        # THIS iteration
         incomplete = []
+        # The backlog is the full list of packets that aims
+        # to be handled this iteration
         backlog    = []
 
-        backlog << @pqueue.pop
-        while(@pqueue.length > 0)
-          backlog << @pqueue.pop
+        # If we have any left over packets from the previous
+        # iteration, we need to prioritise them over the new
+        # packets. If we don't do this, then we end up in
+        # situations where data on channels can be processed
+        # out of order. We don't do a blocking wait here via
+        # the .pop method because we don't want to block, we
+        # just want to dump the queue.
+        while @incomplete_queue.length > 0
+          backlog << @incomplete_queue.pop
+        end
+
+        # If the backlog is empty, we don't have old/stale
+        # packets hanging around, so perform a blocking wait
+        # for the next packet
+        backlog << @new_packet_queue.pop if backlog.length == 0
+        # At this point we either received a packet off the wire
+        # or we had a backlog to process. In either case, we
+        # perform a non-blocking queue dump to fill the backlog
+        # with every packet we have.
+        while @new_packet_queue.length > 0
+          backlog << @new_packet_queue.pop
         end
 
         #
@@ -356,11 +364,11 @@ module PacketDispatcher
         tmp_channel = []
         tmp_close   = []
         backlog.each do |pkt|
-          if(pkt.packet.response?)
+          if(pkt.response?)
             tmp_command << pkt
             next
           end
-          if(pkt.packet.method == "core_channel_close")
+          if(pkt.method == COMMAND_ID_CORE_CHANNEL_CLOSE)
             tmp_close << pkt
             next
           end
@@ -375,11 +383,10 @@ module PacketDispatcher
         #
         # Process the message queue
         #
-
         backlog.each do |pkt|
 
           begin
-          if ! dispatch_inbound_packet(pkt.packet, pkt.in_progress)
+          unless dispatch_inbound_packet(pkt)
             # Keep Packets in the receive queue until a handler is registered
             # for them. Packets will live in the receive queue for up to
             # PACKET_TIMEOUT seconds, after which they will be dropped.
@@ -387,22 +394,20 @@ module PacketDispatcher
             # A common reason why there would not immediately be a handler for
             # a received Packet is in channels, where a connection may
             # open and receive data before anything has asked to read.
-            #
-            # Also, don't bother saving incomplete packets if we have no handler.
-            if (!pkt.in_progress and ::Time.now.to_i - pkt.packet.created_at.to_i < PACKET_TIMEOUT)
+            if (::Time.now.to_i - pkt.created_at.to_i < PACKET_TIMEOUT)
               incomplete << pkt
             end
           end
 
           rescue ::Exception => e
-            dlog("Dispatching exception with packet #{pkt.packet}: #{e} #{e.backtrace}", 'meterpreter', LEV_1)
+            dlog("Dispatching exception with packet #{pkt}: #{e} #{e.backtrace}", 'meterpreter', LEV_1)
           end
         end
 
         # If the backlog and incomplete arrays are the same, it means
         # dispatch_inbound_packet wasn't able to handle any of the
         # packets. When that's the case, we can get into a situation
-        # where @pqueue is not empty and, since nothing else bounds this
+        # where @new_packet_queue is not empty and, since nothing else bounds this
         # loop, we spin CPU trying to handle packets that can't be
         # handled. Sleep here to treat that situation as though the
         # queue is empty.
@@ -410,14 +415,20 @@ module PacketDispatcher
           ::IO.select(nil, nil, nil, 0.10)
         end
 
+        # If we have any packets that weren't handled, they go back
+        # on the incomplete queue so that they're prioritised over
+        # new packets that are coming in off the wire.
+        dlog("Requeuing #{incomplete.length} packet(s)", 'meterpreter', LEV_1) if incomplete.length > 0
         while incomplete.length > 0
-          @pqueue << incomplete.shift
+          @incomplete_queue << incomplete.shift
         end
 
-        if(@pqueue.length > 100)
+        # If the old queue of packets gets too big...
+        if(@incomplete_queue.length > 100)
           removed = []
+          # Drop a bunch of them.
           (1..25).each {
-            removed << @pqueue.pop
+            removed << @incomplete_queue.pop
           }
           dlog("Backlog has grown to over 100 in monitor_socket, dropping older packets: #{removed.map{|x| x.inspect}.join(" - ")}", 'meterpreter', LEV_1)
         end
@@ -436,20 +447,29 @@ module PacketDispatcher
   # once a full packet has been received.
   #
   def receive_packet
-    return parser.recv(self.sock)
+    packet = parser.recv(self.sock)
+    if packet
+      packet.parse_header!
+      if self.session_guid == NULL_GUID
+        self.session_guid = packet.session_guid.dup
+      end
+    end
+    packet
   end
 
   #
   # Stop the monitor
   #
   def monitor_stop
-    if(self.receiver_thread)
+    if self.receiver_thread
       self.receiver_thread.kill
+      self.receiver_thread.join
       self.receiver_thread = nil
     end
 
-    if(self.dispatcher_thread)
+    if self.dispatcher_thread
       self.dispatcher_thread.kill
+      self.dispatcher_thread.join
       self.dispatcher_thread = nil
     end
   end
@@ -464,6 +484,10 @@ module PacketDispatcher
   # Adds a waiter association with the supplied request packet.
   #
   def add_response_waiter(request, completion_routine = nil, completion_param = nil)
+    if self.pivot_session
+      return self.pivot_session.add_response_waiter(request, completion_routine, completion_param)
+    end
+
     waiter = PacketResponseWaiter.new(request.rid, completion_routine, completion_param)
 
     self.waiters << waiter
@@ -475,16 +499,16 @@ module PacketDispatcher
   # Notifies a whomever is waiting for a the supplied response,
   # if anyone.
   #
-  # For not-yet-complete responses, we might not be able to determine
-  # the response ID, in that case just let all waiters know that some
-  # responses are trickling in.
-  #
-  def notify_response_waiter(response, in_progress=false)
+  def notify_response_waiter(response)
+    if self.pivot_session
+      return self.pivot_session.notify_response_waiter(response)
+    end
+
     handled = false
     self.waiters.each() { |waiter|
-      if (in_progress || waiter.waiting_for?(response))
-        waiter.notify(response, in_progress)
-        remove_response_waiter(waiter) unless in_progress
+      if (waiter.waiting_for?(response))
+        waiter.notify(response)
+        remove_response_waiter(waiter)
         handled = true
         break
       end
@@ -496,7 +520,11 @@ module PacketDispatcher
   # Removes a waiter from the list of waiters.
   #
   def remove_response_waiter(waiter)
-    self.waiters.delete(waiter)
+    if self.pivot_session
+      self.pivot_session.remove_response_waiter(waiter)
+    else
+      self.waiters.delete(waiter)
+    end
   end
 
   ##
@@ -513,23 +541,39 @@ module PacketDispatcher
   end
 
   #
+  # Decrypt the given packet with the appropriate key depending on
+  # if this session is a pivot session or not.
+  #
+  def decrypt_inbound_packet(packet)
+    pivot_session = self.find_pivot_session(packet.session_guid)
+    tlv_enc_key = self.tlv_enc_key
+    tlv_enc_key = pivot_session.pivoted_session.tlv_enc_key if pivot_session
+    packet.from_r(tlv_enc_key)
+    packet
+  end
+
+  #
   # Dispatches and processes an inbound packet.  If the packet is a
   # response that has an associated waiter, the waiter is notified.
   # Otherwise, the packet is passed onto any registered dispatch
   # handlers until one returns success.
   #
-  def dispatch_inbound_packet(packet, in_progress=false)
+  def dispatch_inbound_packet(packet)
     handled = false
+
+    # Uncomment this line if you want to see inbound packets in the console
+    #STDERR.puts("RECV: #{packet.inspect}\n")
 
     # Update our last reply time
     self.last_checkin = Time.now
 
+    pivot_session = self.find_pivot_session(packet.session_guid)
+    pivot_session.pivoted_session.last_checkin = self.last_checkin if pivot_session
+
     # If the packet is a response, try to notify any potential
     # waiters
-    if packet.response?
-      if (notify_response_waiter(packet, in_progress))
-        return true
-      end
+    if packet.response? && notify_response_waiter(packet)
+      return true
     end
 
     # Enumerate all of the inbound packet handlers until one handles
@@ -577,6 +621,72 @@ protected
   attr_accessor :receiver_thread # :nodoc:
   attr_accessor :dispatcher_thread # :nodoc:
   attr_accessor :waiters # :nodoc:
+end
+
+module HttpPacketDispatcher
+  def initialize_passive_dispatcher
+    super
+
+    # Ensure that there is only one leading and trailing slash on the URI
+    resource_uri = "/" + self.conn_id.to_s.gsub(/(^\/|\/$)/, '') + "/"
+    self.passive_service = self.passive_dispatcher
+    self.passive_service.remove_resource(resource_uri)
+    self.passive_service.add_resource(resource_uri,
+      'Proc'             => Proc.new { |cli, req| on_passive_request(cli, req) },
+      'VirtualDirectory' => true
+    )
+  end
+
+  def shutdown_passive_dispatcher
+    if self.passive_service
+      # Ensure that there is only one leading and trailing slash on the URI
+      resource_uri = "/" + self.conn_id.to_s.gsub(/(^\/|\/$)/, '') + "/"
+      self.passive_service.remove_resource(resource_uri) if self.passive_service
+
+      if self.passive_service.resources.empty?
+        Rex::ServiceManager.stop_service(self.passive_service)
+      end
+      self.passive_service = nil
+    end
+    super
+  end
+
+  def on_passive_request(cli, req)
+
+    begin
+
+    resp = Rex::Proto::Http::Response.new(200, "OK")
+    resp['Content-Type'] = 'application/octet-stream'
+    resp['Connection']   = 'close'
+
+    self.last_checkin = Time.now
+
+    if req.method == 'GET'
+      rpkt = send_queue.shift
+      resp.body = rpkt || ''
+      begin
+        cli.send_response(resp)
+      rescue ::Exception => e
+        send_queue.unshift(rpkt) if rpkt
+        elog("Exception sending a reply to the reader request #{cli.inspect}", error: e)
+      end
+    else
+      resp.body = ""
+      if req.body and req.body.length > 0
+        packet = Packet.new(0)
+        packet.add_raw(req.body)
+        packet.parse_header!
+        packet = decrypt_inbound_packet(packet)
+        dispatch_inbound_packet(packet)
+      end
+      cli.send_response(resp)
+    end
+
+    rescue ::Exception => e
+      elog("Exception handling request: #{cli.inspect} #{req.inspect}", error: e)
+    end
+  end
+
 end
 
 end; end; end

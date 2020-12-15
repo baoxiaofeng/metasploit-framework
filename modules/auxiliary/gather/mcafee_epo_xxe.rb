@@ -1,13 +1,11 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
 require 'openssl'
 
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Exploit::Remote::HttpClient
 
   def initialize(info = {})
@@ -40,9 +38,9 @@ class MetasploitModule < Msf::Auxiliary
         [
           ['CVE', '2015-0921'],
           ['CVE', '2015-0922'],
-          ['URL', 'http://seclists.org/fulldisclosure/2015/Jan/8']
+          ['URL', 'https://seclists.org/fulldisclosure/2015/Jan/8']
         ],
-      'DisclosureDate' => 'Jan 6 2015'
+      'DisclosureDate' => '2015-01-06'
     ))
 
     register_options(
@@ -52,7 +50,7 @@ class MetasploitModule < Msf::Auxiliary
         OptString.new('TARGETURI', [ true, "Base ePO directory path", '/']),
         OptString.new('USERNAME', [true, "The username to authenticate with", "username"]),
         OptString.new('PASSWORD', [true, "The password to authenticate with", "password"])
-      ], self.class)
+      ])
   end
 
   def run
@@ -255,5 +253,4 @@ class MetasploitModule < Msf::Auxiliary
 
     print_good("The decrypted password for the keystore, 'sa' SQL user (if using local instance), and possibly 'admin' is: #{passphrase}")
   end
-
 end

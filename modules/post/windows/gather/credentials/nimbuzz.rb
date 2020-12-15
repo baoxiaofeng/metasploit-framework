@@ -1,10 +1,8 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-require 'msf/core/auxiliary/report'
 
 class MetasploitModule < Msf::Post
   include Msf::Post::Windows::Registry
@@ -47,7 +45,7 @@ class MetasploitModule < Msf::Post
       subkeys = registry_enumkeys("HKU\\#{k}\\Software\\Nimbuzz\\")
 
       if subkeys == nil or subkeys == ""
-        print_status ("Nimbuzz Instant Messenger not installed for this user.")
+        print_status("Nimbuzz Instant Messenger not installed for this user.")
         return
       end
 
@@ -71,8 +69,6 @@ class MetasploitModule < Msf::Post
       'nimbuzz_user_creds.csv',
       'Nimbuzz User Credentials'
     )
-
-    print_status("Nimbuzz user credentials saved in: #{path}")
+    print_good("Nimbuzz user credentials saved in: #{path}")
   end
-
 end

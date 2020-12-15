@@ -1,12 +1,9 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Exploit::Remote::HttpClient
 
   def initialize(info = {})
@@ -31,7 +28,7 @@ class MetasploitModule < Msf::Auxiliary
           'zirsalem'
         ],
       'License'        => MSF_LICENSE,
-      'DisclosureDate' => 'Dec 17 2015',
+      'DisclosureDate' => '2015-12-17',
       'Actions'        =>
        [
          ['LOCK', 'Description' => 'To lock a phone'],
@@ -44,7 +41,7 @@ class MetasploitModule < Msf::Auxiliary
       [
         OptAddress.new('RHOST', [true, 'The IPS Lock IP Address']),
         OptString.new('PHONENAME', [true, 'The name of the target phone'])
-      ], self.class)
+      ])
 
   end
 

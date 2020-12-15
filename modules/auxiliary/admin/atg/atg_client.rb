@@ -1,10 +1,7 @@
 ##
-# encoding: utf-8
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
-
-require 'msf/core'
 
 class MetasploitModule < Msf::Auxiliary
   include Msf::Auxiliary::Report
@@ -28,7 +25,7 @@ class MetasploitModule < Msf::Auxiliary
       'License'        => MSF_LICENSE,
       'References'     =>
         [
-          ['URL', 'https://community.rapid7.com/community/infosec/blog/2015/01/22/the-internet-of-gas-station-tank-gauges'],
+          ['URL', 'https://blog.rapid7.com/2015/01/22/the-internet-of-gas-station-tank-gauges'],
           ['URL', 'http://www.trendmicro.com/vinfo/us/security/news/cybercrime-and-digital-threats/the-gaspot-experiment'],
           ['URL', 'https://github.com/sjhilt/GasPot'],
           ['URL', 'https://github.com/mushorg/conpot'],

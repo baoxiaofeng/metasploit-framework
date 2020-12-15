@@ -1,10 +1,8 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-require 'msf/core/handler/find_tag'
 require 'msf/base/sessions/command_shell'
 require 'msf/base/sessions/command_shell_options'
 
@@ -33,7 +31,7 @@ module MetasploitModule
         [
           OptString.new('CMD',  [ true,  "The command string to execute", "/bin/sh" ]),
           OptString.new('TAG',  [ true,  "The tag to test for", "NEMO" ]),
-      ], self.class)
+      ])
   end
 
   #
@@ -79,5 +77,4 @@ module MetasploitModule
       "\x48\x89\xE6" +                    # mov rsi,rsp
       "\x0F\x05"                          # loadall286
   end
-
 end

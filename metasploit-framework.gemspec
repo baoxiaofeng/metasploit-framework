@@ -13,20 +13,24 @@ end
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'metasploit/framework/version'
 require 'metasploit/framework/rails_version_constraint'
+require 'msf/util/helper'
 
 Gem::Specification.new do |spec|
   spec.name          = 'metasploit-framework'
   spec.version       = Metasploit::Framework::GEM_VERSION
   spec.authors       = ['Metasploit Hackers']
-  spec.email         = ['metasploit-hackers@lists.sourceforge.net']
+  spec.email         = ['msfdev@metasploit.com']
   spec.summary       = 'metasploit-framework'
   spec.description   = 'metasploit-framework'
   spec.homepage      = 'https://www.metasploit.com'
   spec.license       = 'BSD-3-clause'
 
-  spec.files         = `git ls-files`.split($/).reject { |file|
-    file =~ /^documentation|^data\/gui|^external/
-  }
+  # only do a git ls-files if the .git folder exists and we have a git binary in PATH
+  if File.directory?(File.join(File.dirname(__FILE__), ".git")) && Msf::Util::Helper.which("git")
+    spec.files         = `git ls-files`.split($/).reject { |file|
+      file =~ /^documentation|^external/
+    }
+  end
   spec.bindir = '.'
   if ENV['CREATE_BINSTUBS']
     spec.executables   = [
@@ -34,12 +38,13 @@ Gem::Specification.new do |spec|
       'msfd',
       'msfrpc',
       'msfrpcd',
-      'msfupdate',
       'msfvenom'
     ]
   end
   spec.test_files    = spec.files.grep(%r{^spec/})
   spec.require_paths = ["lib"]
+
+  spec.required_ruby_version = '>= 2.5'
 
   # Database support
   spec.add_runtime_dependency 'activerecord', *Metasploit::Framework::RailsVersionConstraint::RAILS_VERSION
@@ -65,9 +70,9 @@ Gem::Specification.new do |spec|
   # are needed when there's no database
   spec.add_runtime_dependency 'metasploit-model'
   # Needed for Meterpreter
-  spec.add_runtime_dependency 'metasploit-payloads', '1.2.16'
+  spec.add_runtime_dependency 'metasploit-payloads', '2.0.24'
   # Needed for the next-generation POSIX Meterpreter
-  spec.add_runtime_dependency 'metasploit_payloads-mettle', '0.1.7'
+  spec.add_runtime_dependency 'metasploit_payloads-mettle', '1.0.2'
   # Needed by msfgui and other rpc components
   spec.add_runtime_dependency 'msgpack'
   # get list of network interfaces, like eth* from OS.
@@ -77,10 +82,12 @@ Gem::Specification.new do |spec|
   # Needed by anemone crawler
   spec.add_runtime_dependency 'nokogiri'
   # Needed by db.rb and Msf::Exploit::Capture
-  spec.add_runtime_dependency 'packetfu', '1.1.13.pre'
+  spec.add_runtime_dependency 'packetfu'
   # For sniffer and raw socket modules
   spec.add_runtime_dependency 'pcaprub'
-  # Needed for module caching in Mdm::ModuleDetails
+  # Used by the Metasploit data model, etc.
+  # bound to 0.2x for Activerecord 4.2.8 deprecation warnings:
+  # https://github.com/ged/ruby-pg/commit/c90ac644e861857ae75638eb6954b1cb49617090
   spec.add_runtime_dependency 'pg'
   # Run initializers for metasploit-concern, metasploit-credential, metasploit_data_models Rails::Engines
   spec.add_runtime_dependency 'railties'
@@ -93,6 +100,13 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency 'redcarpet'
   # Needed for Microsoft patch finding tool (msu_finder)
   spec.add_runtime_dependency 'patch_finder'
+  # Required for Metasploit Web Services
+  spec.add_runtime_dependency 'puma'
+  spec.add_runtime_dependency 'thin'
+  spec.add_runtime_dependency 'sinatra'
+  spec.add_runtime_dependency 'warden'
+  # Required for JSON-RPC client
+  spec.add_runtime_dependency 'em-http-request'
   # TimeZone info
   spec.add_runtime_dependency 'tzinfo-data'
   # Gem for dealing with SSHKeys
@@ -101,11 +115,30 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency 'bit-struct'
   # Library for interpreting Windows error codes and strings
   spec.add_runtime_dependency 'windows_error'
+  # This used to be depended on by nokogiri, depended on by wmap
+  if Gem::Version.new(RUBY_VERSION) >= Gem::Version.new('2.3.0')
+    spec.add_runtime_dependency 'xmlrpc'
+  end
+
+  #
+  # File Parsing Libraries
+  #
+  # Needed by auxiliary/gather/http_pdf_authors module
+  spec.add_runtime_dependency 'pdf-reader'
+  spec.add_runtime_dependency 'ruby-macho'
+  # Needed for mongodb/bson
+  spec.add_runtime_dependency 'bson'
 
   #
   # Protocol Libraries
   #
+  spec.add_runtime_dependency 'dnsruby'
+  spec.add_runtime_dependency 'mqtt'
   spec.add_runtime_dependency 'net-ssh'
+  spec.add_runtime_dependency 'ed25519' # Adds ed25519 keys for net-ssh
+  spec.add_runtime_dependency 'bcrypt_pbkdf'
+  spec.add_runtime_dependency 'ruby_smb', '~> 2.0'
+  spec.add_runtime_dependency 'net-ldap'
 
   #
   # REX Libraries
@@ -128,7 +161,7 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency 'rex-struct2'
   # Library which contains architecture specific information such as registers, opcodes,
   # and stack manipulation routines.
-  spec.add_runtime_dependency 'rex-arch', '0.1.4'
+  spec.add_runtime_dependency 'rex-arch'
   # Library for working with OLE.
   spec.add_runtime_dependency 'rex-ole'
   # Library for creating and/or parsing MIME messages.
@@ -149,8 +182,6 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency 'rex-exploitation'
   # Command line editing, history, and tab completion in msfconsole
   spec.add_runtime_dependency 'rb-readline'
-  # Needed by anemone crawler
-  spec.add_runtime_dependency 'robots'
   # Needed by some modules
   spec.add_runtime_dependency 'rubyzip'
   # Needed for some post modules
@@ -165,4 +196,28 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency 'nessus_rest'
   # Nexpose Gem
   spec.add_runtime_dependency 'nexpose'
+  # Needed for NDMP sockets
+  spec.add_runtime_dependency 'xdr'
+  # Needed for ::Msf...CertProvider
+  spec.add_runtime_dependency 'faker'
+  # Pinned as a dependency of i18n to the last working version
+  spec.add_runtime_dependency 'concurrent-ruby','1.0.5'
+  # SSH server library
+  spec.add_runtime_dependency 'hrr_rb_ssh', '0.3.0.pre2'
+  # Needed for irb internal command
+  spec.add_runtime_dependency 'irb'
+
+  # AWS enumeration modules
+  spec.add_runtime_dependency 'aws-sdk-s3'
+  spec.add_runtime_dependency 'aws-sdk-ec2'
+  spec.add_runtime_dependency 'aws-sdk-iam'
+
+  # Needed for WebSocket Support
+  spec.add_runtime_dependency 'faye-websocket'
+  spec.add_runtime_dependency 'eventmachine'
+
+  # Earlier than latest Faraday gem is used to prevent upstream Octokit errors
+  spec.add_runtime_dependency 'faraday'
+
+  spec.add_runtime_dependency 'zeitwerk'
 end

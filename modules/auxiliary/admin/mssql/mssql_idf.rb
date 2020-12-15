@@ -1,4 +1,9 @@
 ##
+# This module requires Metasploit: https://metasploit.com/download
+# Current source: https://github.com/rapid7/metasploit-framework
+##
+
+##
 # Author: Robin Wood <robin@digininja.org> <http://www.digininja.org>
 # Version: 0.1
 #
@@ -7,15 +12,7 @@
 #
 ##
 
-##
-# This module requires Metasploit: http://metasploit.com/download
-# Current source: https://github.com/rapid7/metasploit-framework
-##
-
-require 'msf/core'
-
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Exploit::Remote::MSSQL
 
   def initialize(info = {})
@@ -34,17 +31,13 @@ class MetasploitModule < Msf::Auxiliary
       'References'     =>
         [
           [ 'URL', 'http://www.digininja.org/metasploit/mssql_idf.php' ],
-        ],
-      'Targets'        =>
-        [
-          [ 'MSSQL 2005', { 'ver' => 2005 }	],
         ]
     ))
 
     register_options(
       [
         OptString.new('NAMES', [ true, 'Pipe separated list of column names',  'passw|bank|credit|card']),
-      ], self.class)
+      ])
   end
 
   def print_with_underline(str)
@@ -166,5 +159,4 @@ class MetasploitModule < Msf::Auxiliary
     print_line
     disconnect
   end
-
 end

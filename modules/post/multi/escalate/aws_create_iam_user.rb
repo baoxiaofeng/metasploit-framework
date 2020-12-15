@@ -1,14 +1,12 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
 require 'metasploit/framework/aws/client'
 require 'json'
 
 class MetasploitModule < Msf::Post
-
   include Metasploit::Framework::Aws::Client
 
   def initialize(info = {})
@@ -49,7 +47,7 @@ class MetasploitModule < Msf::Post
       [
         OptString.new('METADATA_IP', [true, 'The metadata service IP', '169.254.169.254']),
         OptString.new('RHOST', [true, 'AWS IAM Endpoint', 'iam.amazonaws.com']),
-        OptString.new('RPORT', [true, 'AWS IAM Endpoint TCP Port', 443]),
+        OptPort.new('RPORT', [true, 'AWS IAM Endpoint TCP Port', 443]),
         OptString.new('SSL', [true, 'AWS IAM Endpoint SSL', true]),
         OptString.new('IAM_GROUP_POL', [true, 'IAM group policy to use', '{"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Action": "*", "Resource": "*" }]}']),
         OptString.new('Region', [true, 'The default region', 'us-east-1' ])

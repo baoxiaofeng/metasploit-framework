@@ -1,10 +1,5 @@
 # -*- coding: binary -*-
 
-require 'msf/core'
-require 'msf/core/payload/transport_config'
-require 'msf/core/payload/windows/reverse_tcp'
-require 'msf/core/payload/windows/rc4'
-
 module Msf
 
 ###
@@ -142,7 +137,8 @@ module Payload::Windows::ReverseTcpRc4
         dec [esp]               ; decrement the counter
 
         ; try again
-        jmp create_socket
+        jnz create_socket
+        jmp failure
       ^
     end
 

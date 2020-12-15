@@ -1,13 +1,10 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-require 'msf/core/exploit/jsobfu'
 
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Exploit::Remote::HttpServer::HTML
   include Msf::Exploit::JSObfu
 
@@ -34,12 +31,8 @@ class MetasploitModule < Msf::Auxiliary
           [ 'URL', 'https://www.alienvault.com/open-threat-exchange/blog/attackers-abusing-internet-explorer-to-enumerate-software-and-detect-securi' ]
         ],
       'Platform'       => 'win',
-      'Targets'        =>
-        [
-          [ 'Internet Explorer 8 / Internet Explorer 9', {} ],
-        ],
-      'DisclosureDate' => "Sep 9 2014", # MSB. Used in the wild since Feb 2014
-      'DefaultTarget'  => 0))
+      'DisclosureDate' => '2014-09-09', # MSB. Used in the wild since Feb 2014
+      ))
 
     register_options(
       [
@@ -217,5 +210,4 @@ class MetasploitModule < Msf::Auxiliary
       send_response(cli, html)
     end
   end
-
 end

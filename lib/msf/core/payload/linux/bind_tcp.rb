@@ -1,9 +1,5 @@
 # -*- coding: binary -*-
 
-require 'msf/core'
-require 'msf/core/payload/transport_config'
-require 'msf/core/payload/linux/send_uuid'
-
 module Msf
 
 
@@ -31,7 +27,7 @@ module Payload::Linux::BindTcp
 
     # Generate the more advanced stager if we have the space
     if self.available_space && required_space <= self.available_space
-      conf[:exitfunk] = datastore['EXITFUNC'],
+      conf[:exitfunk] = datastore['EXITFUNC']
       conf[:reliable] = true
     end
 

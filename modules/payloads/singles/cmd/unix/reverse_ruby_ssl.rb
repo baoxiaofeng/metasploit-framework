@@ -1,10 +1,8 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-require 'msf/core/handler/reverse_tcp_ssl'
 require 'msf/base/sessions/command_shell'
 require 'msf/base/sessions/command_shell_options'
 
@@ -19,7 +17,7 @@ module MetasploitModule
     super(merge_info(info,
       'Name'        => 'Unix Command Shell, Reverse TCP SSL (via Ruby)',
       'Description' => 'Connect back and create a command shell via Ruby, uses SSL',
-      'Author'      => 'RageLtMan',
+      'Author'      => 'RageLtMan <rageltman[at]sempervictus>',
       'License'     => MSF_LICENSE,
       'Platform'    => 'unix',
       'Arch'        => ARCH_CMD,

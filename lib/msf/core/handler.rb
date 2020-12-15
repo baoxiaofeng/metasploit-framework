@@ -1,5 +1,4 @@
 # -*- coding: binary -*-
-require 'msf/core'
 
 module Msf
 
@@ -28,7 +27,6 @@ module Msf
 #
 ###
 module Handler
-  require 'msf/core/handler/reverse'
 
   ##
   #
@@ -210,7 +208,7 @@ protected
       rescue ::Exception => e
         # We just wanna show and log the error, not trying to swallow it.
         print_error("#{e.class} #{e.message}")
-        elog("#{e.class} #{e.message}\n#{e.backtrace * "\n"}")
+        elog('Could not allocate a new Session.', error: e)
         raise e
       end
 
@@ -221,8 +219,30 @@ protected
       # and any relevant information
       s.set_from_exploit(assoc_exploit)
 
+      # set injected workspace value if db is active
+      if framework.db.active && wspace = framework.db.find_workspace(s.workspace)
+        framework.db.workspace = wspace
+      end
+
       # Pass along any associated payload uuid if specified
-      s.payload_uuid = opts[:payload_uuid] if opts[:payload_uuid]
+      if opts[:payload_uuid]
+        s.payload_uuid = opts[:payload_uuid]
+        s.payload_uuid.registered = false
+
+        if framework.db.active
+          payload_info = {
+              uuid: s.payload_uuid.puid_hex,
+              workspace: framework.db.workspace
+          }
+          if s.payload_uuid.respond_to?(:puid_hex) && (uuid_info = framework.db.payloads(payload_info).first)
+            s.payload_uuid.registered = true
+            s.payload_uuid.name = uuid_info['name']
+            s.payload_uuid.timestamp = uuid_info['timestamp']
+          else
+            s.payload_uuid.registered = false
+          end
+        end
+      end
 
       # If the session is valid, register it with the framework and
       # notify any waiters we may have.
@@ -244,11 +264,14 @@ protected
     framework.sessions.register(session)
 
     # Call the handler's on_session() method
-    on_session(session)
-
-    # Process the auto-run scripts for this session
-    if session.respond_to?('process_autoruns')
-      session.process_autoruns(datastore)
+    if session.respond_to?(:bootstrap)
+      session.bootstrap(datastore, self)
+    else
+      # Process the auto-run scripts for this session
+      if session.respond_to?(:process_autoruns)
+        session.process_autoruns(datastore)
+      end
+      on_session(session)
     end
 
     # If there is an exploit associated with this payload, then let's notify
@@ -275,7 +298,3 @@ protected
 end
 
 end
-
-# The default none handler
-require 'msf/core/handler/none'
-

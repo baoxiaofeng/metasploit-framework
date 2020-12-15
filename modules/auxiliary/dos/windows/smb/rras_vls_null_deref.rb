@@ -1,11 +1,7 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
-
-
-require 'msf/core'
-
 
 class MetasploitModule < Msf::Auxiliary
 
@@ -33,16 +29,16 @@ class MetasploitModule < Msf::Auxiliary
         ],
       'Actions'     =>
         [
-          ['Attack'],
+          ['Attack', 'Description' => 'Run Denial of Service'],
         ],
       'DefaultAction' => 'Attack',
-      'DisclosureDate' => 'Jun 14 2006'
+      'DisclosureDate' => '2006-06-14'
     ))
 
     register_options(
       [
         OptString.new('SMBPIPE', [ true,  "The pipe name to use (ROUTER, SRVSVC)", 'ROUTER']),
-      ], self.class)
+      ])
 
   end
 
@@ -74,5 +70,4 @@ class MetasploitModule < Msf::Auxiliary
 
     disconnect
   end
-
 end

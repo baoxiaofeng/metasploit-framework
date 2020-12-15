@@ -1,12 +1,8 @@
-
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-require 'rex'
-require 'msf/core/post/windows/powershell'
 
 class MetasploitModule < Msf::Post
   include Msf::Post::Windows::Powershell
@@ -24,19 +20,19 @@ class MetasploitModule < Msf::Post
       'SessionTypes'         => ['meterpreter'],
       'Author'               => [
         'Nicholas Nam (nick[at]executionflow.org)', # original meterpreter script
-        'RageLtMan' # post module and libs
+        'RageLtMan <rageltman[at]sempervictus>' # post module and libs
         ]
     ))
 
     register_options(
       [
         OptString.new( 'SCRIPT',  [true, 'Path to the local PS script or command string to execute']),
-      ], self.class)
+      ])
 
     register_advanced_options(
       [
         OptString.new('SUBSTITUTIONS', [false, 'Script subs in gsub format - original,sub;original,sub']),
-      ], self.class)
+      ])
 
   end
 
@@ -53,5 +49,4 @@ class MetasploitModule < Msf::Post
     print_status psh_exec(script)
     print_good 'Finished!'
   end
-
 end

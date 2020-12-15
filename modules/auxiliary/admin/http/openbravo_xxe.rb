@@ -1,15 +1,12 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-require 'rex'
 require 'net/dns'
 require 'rexml/document'
 
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Exploit::Remote::HttpClient
   include Msf::Auxiliary::Report
 
@@ -21,7 +18,7 @@ class MetasploitModule < Msf::Auxiliary
         local files. This allows the user to read any files from the FS as the
         user Openbravo is running as (generally not root).
 
-        This module was tested againt Openbravo ERP version 3.0MP25 and 2.50MP6.
+        This module was tested against Openbravo ERP version 3.0MP25 and 2.50MP6.
       },
       'Author' =>
         [
@@ -32,10 +29,10 @@ class MetasploitModule < Msf::Auxiliary
           ['CVE', '2013-3617'],
           ['OSVDB', '99141'],
           ['BID', '63431'],
-          ['URL', 'https://community.rapid7.com/community/metasploit/blog/2013/10/30/seven-tricks-and-treats']
+          ['URL', 'https://blog.rapid7.com/2013/10/30/seven-tricks-and-treats']
         ],
       'License' => MSF_LICENSE,
-      'DisclosureDate' => 'Oct 30 2013'
+      'DisclosureDate' => '2013-10-30'
     ))
 
     register_options(
@@ -45,7 +42,7 @@ class MetasploitModule < Msf::Auxiliary
         OptString.new('HttpPassword', [true, "The Openbravo password", "openbravo"]),
         OptString.new('FILEPATH', [true, "The filepath to read on the server", "/etc/passwd"]),
         OptString.new('ENDPOINT', [true, "The XML API REST endpoint to use", "ADUser"])
-      ], self.class)
+      ])
   end
 
   def run

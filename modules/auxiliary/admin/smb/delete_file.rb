@@ -1,9 +1,7 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
-
-require 'msf/core'
 
 class MetasploitModule < Msf::Auxiliary
 
@@ -37,7 +35,7 @@ class MetasploitModule < Msf::Auxiliary
 
     register_options([
       OptString.new('SMBSHARE', [true, 'The name of a share on the RHOST', 'C$'])
-    ], self.class)
+    ])
   end
 
   def smb_delete_files
@@ -54,8 +52,8 @@ class MetasploitModule < Msf::Auxiliary
 
         # If there's no exception raised at this point, we assume the file has been removed.
         print_good("Deleted: #{remote_path}")
-      rescue Rex::Proto::SMB::Exceptions::ErrorCode => e
-        elog("#{e.class} #{e.message}\n#{e.backtrace * "\n"}")
+      rescue Rex::Proto::SMB::Exceptions::ErrorCode, RubySMB::Error::RubySMBError => e
+        elog("Cannot delete #{remote_path}:", error: e)
         print_error("Cannot delete #{remote_path}: #{e.message}")
       end
     end
@@ -65,9 +63,8 @@ class MetasploitModule < Msf::Auxiliary
     begin
       smb_delete_files
     rescue Rex::Proto::SMB::Exceptions::LoginError => e
-      elog("#{e.class} #{e.message}\n#{e.backtrace * "\n"}")
+      elog('Unable to login', error: e)
       print_error("Unable to login: #{e.message}")
     end
   end
-
 end

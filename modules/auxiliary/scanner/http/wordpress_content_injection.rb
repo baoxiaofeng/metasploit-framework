@@ -1,10 +1,9 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Exploit::Remote::HTTP::Wordpress
   include Msf::Auxiliary::Scanner
 
@@ -20,13 +19,14 @@ class MetasploitModule < Msf::Auxiliary
         'wvu'           # Metasploit module
       ],
       'References'     => [
+        ['CVE' , '2017-1001000'],
         ['WPVDB', '8734'],
         ['URL',   'https://blog.sucuri.net/2017/02/content-injection-vulnerability-wordpress-rest-api.html'],
         ['URL',   'https://secure.php.net/manual/en/language.types.type-juggling.php'],
         ['URL',   'https://developer.wordpress.org/rest-api/using-the-rest-api/discovery/'],
         ['URL',   'https://developer.wordpress.org/rest-api/reference/posts/']
       ],
-      'DisclosureDate' => 'Feb 1 2017',
+      'DisclosureDate' => '2017-02-01',
       'License'        => MSF_LICENSE,
       'Actions'        => [
         ['LIST',   'Description' => 'List posts'],
@@ -213,5 +213,4 @@ class MetasploitModule < Msf::Auxiliary
   def route_rest_api(rest_api)
     normalize_uri(path_from_uri(rest_api), 'wp/v2')
   end
-
 end

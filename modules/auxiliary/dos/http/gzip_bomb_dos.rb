@@ -1,9 +1,8 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
 require 'zlib'
 require 'stringio'
 
@@ -35,10 +34,10 @@ class MetasploitModule < Msf::Auxiliary
         [
           [ 'URL', 'http://www.aerasec.de/security/advisories/decompression-bomb-vulnerability.html' ]
         ],
-      'DisclosureDate' => 'Jan 1 2004',
+      'DisclosureDate' => '2004-01-01',
       'Actions'     =>
         [
-          [ 'WebServer' ]
+          [ 'WebServer', 'Description' => 'Host file via web server' ]
         ],
       'PassiveActions' =>
         [

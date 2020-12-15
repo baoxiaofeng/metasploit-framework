@@ -1,12 +1,9 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Exploit::Remote::Tcp
   include Msf::Auxiliary::Scanner
   include Msf::Auxiliary::Report
@@ -37,7 +34,7 @@ class MetasploitModule < Msf::Auxiliary
     register_options(
       [
         OptPort.new('RPORT', [ true, 'Remote port running RDP', 3389 ])
-      ], self.class)
+      ])
   end
 
   def check_rdp
@@ -179,7 +176,7 @@ class MetasploitModule < Msf::Auxiliary
       bt = e.backtrace.join("\n")
       vprint_error("Unexpected error: #{e.message}")
       vprint_line(bt)
-      elog("#{e.message}\n#{bt}")
+      elog(e)
     ensure
       disconnect
     end
@@ -196,5 +193,4 @@ class MetasploitModule < Msf::Auxiliary
       print_status("#{ip}:#{rport} - #{status[1]}")
     end
   end
-
 end

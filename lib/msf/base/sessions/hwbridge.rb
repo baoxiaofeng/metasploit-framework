@@ -1,7 +1,7 @@
 # -*- coding: binary -*-
 
 require 'msf/base'
-
+require 'msf/base/sessions/scriptable'
 require 'rex/post/hwbridge'
 
 module Msf
@@ -24,6 +24,7 @@ class HWBridge  < Rex::Post::HWBridge::Client
   # This interface supports interactive commands.
   #
   include Msf::Session::Interactive
+  include Msf::Session::Scriptable
 
   #
   # Initialize the HWBridge console
@@ -158,6 +159,26 @@ class HWBridge  < Rex::Post::HWBridge::Client
   end
 
   #
+  # Loads the zigbee extension
+  #
+  def load_zigbee
+    original = console.disable_output
+    console.disable_output = true
+    console.run_single('load zigbee')
+    console.disable_output = original
+  end
+
+  #
+  # Loads the rftransceiver extension
+  #
+  def load_rftransceiver
+    original = console.disable_output
+    console.disable_output = true
+    console.run_single('load rftransceiver')
+    console.disable_output = original
+  end
+
+  #
   # Load custom methods provided by the hardware
   #
   def load_custom_methods
@@ -176,6 +197,10 @@ class HWBridge  < Rex::Post::HWBridge::Client
 
   attr_accessor :console # :nodoc:
   attr_accessor :alive # :nodoc:
+  attr_accessor :api_version
+  attr_accessor :fw_version
+  attr_accessor :hw_version
+  attr_accessor :device_name
 private
   attr_accessor :rstream # :nodoc:
 

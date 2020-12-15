@@ -16,13 +16,13 @@ module Msf::DBManager::Import::Nmap
   # that. Otherwise, you'll hit the old NmapXMLStreamParser.
   def import_nmap_xml(args={}, &block)
     return nil if args[:data].nil? or args[:data].empty?
-    wspace = args[:wspace] || workspace
+    wspace = Msf::Util::DBManager.process_opts_workspace(args, framework)
     bl = validate_ips(args[:blacklist]) ? args[:blacklist].split : []
 
     if Rex::Parser.nokogiri_loaded
       noko_args = args.dup
       noko_args[:blacklist] = bl
-      noko_args[:wspace] = wspace
+      noko_args[:workspace] = wspace
       if block
         yield(:parser, "Nokogiri v#{::Nokogiri::VERSION}")
         import_nmap_noko_stream(noko_args) {|type, data| yield type,data }
@@ -241,7 +241,6 @@ module Msf::DBManager::Import::Nmap
   #
   def import_nmap_xml_file(args={})
     filename = args[:filename]
-    wspace = args[:wspace] || workspace
 
     data = ""
     ::File.open(filename, 'rb') do |f|

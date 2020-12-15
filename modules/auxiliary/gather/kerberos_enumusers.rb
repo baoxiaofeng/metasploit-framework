@@ -1,10 +1,7 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
-
-require 'msf/core'
-require 'rex'
 
 class MetasploitModule < Msf::Auxiliary
   include Msf::Auxiliary::Report
@@ -14,7 +11,7 @@ class MetasploitModule < Msf::Auxiliary
     super(update_info(info,
       'Name' => 'Kerberos Domain User Enumeration',
       'Description' => %q(
-        This module will enumerate valid Domain Users via Kerberos from an unauthenticated perspective. It utilises
+        This module will enumerate valid Domain Users via Kerberos from an unauthenticated perspective. It utilizes
         the different responses returned by the service for valid and invalid users.
       ),
       'Author' =>
@@ -96,7 +93,7 @@ class MetasploitModule < Msf::Auxiliary
       address: opts[:host],
       port: opts[:port],
       protocol: 'udp',
-      workspace_id: myworkspace.id,
+      workspace_id: myworkspace_id,
       service_name: opts[:creds_name]
     }
 

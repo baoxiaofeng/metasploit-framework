@@ -1,12 +1,9 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Exploit::Remote::HttpClient
   include Msf::Auxiliary::Dos
 
@@ -33,7 +30,7 @@ class MetasploitModule < Msf::Auxiliary
            ['URL', 'http://tomcat.apache.org/security-8.html'],
            ['URL', 'http://tomcat.apache.org/security-7.html']
          ],
-        'DisclosureDate' => 'Feb 6 2014'
+        'DisclosureDate' => '2014-02-06'
       ))
 
       register_options(
@@ -41,7 +38,7 @@ class MetasploitModule < Msf::Auxiliary
           Opt::RPORT(8080),
           OptString.new('TARGETURI', [ true,  "The request URI", '/']),
           OptInt.new('RLIMIT', [ true,  "Number of requests to send",50])
-        ], self.class)
+        ])
   end
 
   def run

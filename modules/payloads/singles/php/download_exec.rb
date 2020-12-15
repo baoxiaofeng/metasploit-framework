@@ -1,11 +1,7 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
-
-
-require 'msf/core'
-require 'msf/core/payload/php'
 
 
 module MetasploitModule
@@ -33,7 +29,7 @@ module MetasploitModule
     register_options(
       [
         OptString.new('URL', [ true, "The pre-encoded URL to the executable" ])
-      ], self.class)
+      ])
   end
 
   def php_exec_file
@@ -80,5 +76,4 @@ module MetasploitModule
   def generate
     return php_exec_file
   end
-
 end

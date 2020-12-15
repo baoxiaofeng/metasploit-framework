@@ -1,10 +1,7 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
-
-
-require 'msf/core'
 
 class MetasploitModule < Msf::Auxiliary
 
@@ -40,8 +37,9 @@ class MetasploitModule < Msf::Auxiliary
     register_options([
       OptString.new('SMBSHARE', [true, 'The name of a writeable share on the server', 'C$']),
       OptString.new('RPATH', [false, 'The name of the remote directory relative to the share']),
-    ], self.class)
+    ])
 
+    deregister_options('SMB::ProtocolVersion')
   end
 
   def as_size( s )
@@ -58,7 +56,7 @@ class MetasploitModule < Msf::Auxiliary
   def run
     print_status("Connecting to the server...")
     begin
-      connect()
+      connect(versions: [1])
       smb_login()
       print_status("Mounting the remote share \\\\#{datastore['RHOST']}\\#{datastore['SMBSHARE']}'...")
             self.simple.connect("\\\\#{datastore['RHOST']}\\#{datastore['SMBSHARE']}")

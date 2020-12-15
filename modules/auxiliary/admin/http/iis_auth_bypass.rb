@@ -1,12 +1,9 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Exploit::Remote::HttpClient
 
   def initialize(info = {})
@@ -30,13 +27,13 @@ class MetasploitModule < Msf::Auxiliary
           'sinn3r'
         ],
       'License'        => MSF_LICENSE,
-      'DisclosureDate' => "Jul 02 2010"
+      'DisclosureDate' => '2010-07-02'
     ))
 
     register_options(
       [
         OptString.new("TARGETURI", [true, 'The URI directory where basic auth is enabled', '/'])
-      ], self.class)
+      ])
   end
 
 
@@ -89,5 +86,4 @@ class MetasploitModule < Msf::Auxiliary
       print_good("You can bypass auth by doing: #{bypass_string}")
     end
   end
-
 end

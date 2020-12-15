@@ -1,12 +1,9 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Auxiliary::Scanner
   include Msf::Auxiliary::Report
   include Msf::Exploit::Remote::HttpClient
@@ -35,7 +32,7 @@ class MetasploitModule < Msf::Auxiliary
           'sinn3r'
         ],
       'License'        => MSF_LICENSE,
-      'DisclosureDate' => "Nov 30 2012"
+      'DisclosureDate' => '2012-11-30'
     ))
 
     register_options(
@@ -44,9 +41,7 @@ class MetasploitModule < Msf::Auxiliary
         OptString.new('FILENAME', [true, 'The file to download', '/etc/passwd']),
         OptString.new('USERNAME', [true, 'The username to login as']),
         OptString.new('PASSWORD', [true, 'The password to login with'])
-      ], self.class)
-
-    deregister_options('RHOST')
+      ])
   end
 
   def auth(username, password, sid, last_login)
@@ -146,5 +141,4 @@ class MetasploitModule < Msf::Auxiliary
     fname = datastore['FILENAME']
     download_file(sid, fname)
   end
-
 end

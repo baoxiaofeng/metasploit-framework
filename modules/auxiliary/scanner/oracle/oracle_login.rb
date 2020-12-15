@@ -1,12 +1,9 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Auxiliary::Report
   include Msf::Auxiliary::Nmap
   include Msf::Auxiliary::AuthBrute
@@ -20,6 +17,8 @@ class MetasploitModule < Msf::Auxiliary
         This module attempts to authenticate against an Oracle RDBMS
         instance using username and password combinations indicated
         by the USER_FILE, PASS_FILE, and USERPASS_FILE options.
+
+        Due to a bug in nmap versions 6.50-7.80 may not work.
       },
       'Author'         => [
         'Patrik Karlsson <patrik[at]cqure.net>', # the nmap NSE script, oracle-brute.nse
@@ -36,10 +35,10 @@ class MetasploitModule < Msf::Auxiliary
 
     register_options(
       [
-        OptPath.new('USERPASS_FILE',  [ false, "File containing (space-seperated) users and passwords, one pair per line",
+        OptPath.new('USERPASS_FILE',  [ false, "File containing (space-separated) users and passwords, one pair per line",
           File.join(Msf::Config.data_directory, "wordlists", "oracle_default_userpass.txt") ]),
         OptString.new('SID', [ true, 'The instance (SID) to authenticate against', 'XE'])
-      ], self.class)
+      ])
 
   end
 
@@ -197,7 +196,7 @@ class MetasploitModule < Msf::Auxiliary
             @oracle_reported = true
           end
           user = extract_creds(oline)[0]
-          print_status "#{msg} Locked: #{user} (SID: #{sid}) -- account valid but locked"
+          print_good "#{msg} Locked: #{user} (SID: #{sid}) -- account valid but locked"
           report_cred(
             ip: addr,
             port: port,
@@ -211,5 +210,4 @@ class MetasploitModule < Msf::Auxiliary
       end
     end
   end
-
 end

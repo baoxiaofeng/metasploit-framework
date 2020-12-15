@@ -1,12 +1,9 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Exploit::Remote::Udp
   include Msf::Auxiliary::Dos
 
@@ -26,12 +23,12 @@ class MetasploitModule < Msf::Auxiliary
           [ 'URL', 'http://www.wireshark.org/security/wnpa-sec-2011-04.html' ],
           [ 'URL', 'https://bugs.wireshark.org/bugzilla/show_bug.cgi?id=5717' ],
         ],
-      'DisclosureDate' => 'Mar 1 2011'))
+      'DisclosureDate' => '2011-03-01'))
 
     register_options([
       OptInt.new('RPORT', [true, 'The destination port', 389]),
       OptAddress.new('SHOST', [false, 'This option can be used to specify a spoofed source address', nil])
-    ], self.class)
+    ])
   end
 
   def run

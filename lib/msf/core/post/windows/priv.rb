@@ -1,8 +1,5 @@
 # -*- coding: binary -*-
 
-require 'msf/core/post/windows/accounts'
-require 'msf/core/post/windows/registry'
-
 module Msf::Post::Windows::Priv
   include ::Msf::Post::Windows::Accounts
   include Msf::Post::Windows::Registry
@@ -78,7 +75,7 @@ module Msf::Post::Windows::Priv
     rescue Rex::Post::Meterpreter::RequestError => e
       # It could raise an exception even when the token is successfully stolen,
       # so we will just log the exception and move on.
-      elog("#{e.class} #{e.message}\n#{e.backtrace * "\n"}")
+      elog(e)
     end
 
     true
@@ -106,12 +103,7 @@ module Msf::Post::Windows::Priv
   #
   def is_system?
     if session_has_ext
-      local_sys = resolve_sid(SYSTEM_SID)
-      if session.sys.config.getuid == "#{local_sys[:domain]}\\#{local_sys[:name]}"
-        return true
-      else
-        return false
-      end
+      return session.sys.config.is_system?
     else
       results = registry_enumkeys('HKLM\SAM\SAM')
       if results
@@ -132,7 +124,7 @@ module Msf::Post::Windows::Priv
     uac = false
     winversion = session.sys.config.sysinfo['OS']
 
-    if winversion =~ /Windows (Vista|7|8|2008|2012|10)/
+    if winversion =~ /Windows (Vista|7|8|2008|2012|10|2016|2019)/
       unless is_system?
         begin
           enable_lua = registry_getvaldata(
@@ -194,7 +186,7 @@ module Msf::Post::Windows::Priv
   #
   def is_high_integrity?
     il = get_integrity_level
-    (il == INTEGRITY_LEVEL_SID[:high] || il == INTEGRITY_LEVEL_SIDE[:system])
+    (il == INTEGRITY_LEVEL_SID[:high] || il == INTEGRITY_LEVEL_SID[:system])
   end
 
   #
@@ -408,9 +400,9 @@ module Msf::Post::Windows::Priv
         j = key[j..j+7].length
       end
     end
-    dec_data_len = decrypted_data[0].ord
+    dec_data_len = decrypted_data[0,4].unpack('<L').first
 
-    return decrypted_data[8..8+dec_data_len]
+    return decrypted_data[8, dec_data_len]
 
   end
 

@@ -1,12 +1,9 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Exploit::Remote::Udp
   include Msf::Auxiliary::Dos
 
@@ -30,14 +27,14 @@ class MetasploitModule < Msf::Auxiliary
           [ 'BID', '57607' ],
           [ 'URL', 'https://community.rapid7.com/servlet/JiveServlet/download/2150-1-16596/SecurityFlawsUPnP.pdf' ]
         ],
-      'DisclosureDate' => 'Mar 27 2013',
+      'DisclosureDate' => '2013-03-27',
     ))
 
     register_options(
     [
       Opt::RPORT(1900),
       OptInt.new('ATTEMPTS', [true, 'Max number of attempts to DoS the remote MiniUPnP ending', 3 ])
-    ], self.class)
+    ])
   end
 
   def send_probe(udp_sock, probe)

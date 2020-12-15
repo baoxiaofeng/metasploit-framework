@@ -1,15 +1,16 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
 require 'thread'
-require 'msf/core'
 require 'rex/proto/proxy/socks4a'
 
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Auxiliary::Report
+
+  include Msf::Module::Deprecated
+  deprecated(Date.new(2020, 12, 29), reason="Use auxiliary/server/socks_proxy and set VERSION to 4a")
 
   def initialize
     super(
@@ -19,7 +20,7 @@ class MetasploitModule < Msf::Auxiliary
       'License'     => MSF_LICENSE,
       'Actions'     =>
         [
-          [ 'Proxy' ]
+          [ 'Proxy', 'Description' => 'Run SOCKS4a proxy' ]
         ],
       'PassiveActions' =>
         [
@@ -32,7 +33,7 @@ class MetasploitModule < Msf::Auxiliary
       [
         OptString.new( 'SRVHOST', [ true,  "The address to listen on", '0.0.0.0' ] ),
         OptPort.new( 'SRVPORT', [ true,  "The port to listen on.", 1080 ] )
-      ], self.class )
+      ])
   end
 
   def setup
@@ -67,5 +68,4 @@ class MetasploitModule < Msf::Auxiliary
 
     @socks4a.join
   end
-
 end

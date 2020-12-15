@@ -1,9 +1,8 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
 
 class MetasploitModule < Msf::Auxiliary
   Rank = NormalRanking
@@ -20,7 +19,7 @@ class MetasploitModule < Msf::Auxiliary
       'Author'         => [ 'sinn3r' ],
       'References'     =>
         [
-          [ 'URL', 'http://metasploit.com' ]
+          [ 'URL', 'https://metasploit.com' ]
         ],
       'Platform'       => 'win',
       'Targets'        =>
@@ -28,7 +27,7 @@ class MetasploitModule < Msf::Auxiliary
           [ 'Automatic', {} ]
         ],
       'Privileged'     => false,
-      'DisclosureDate' => "Mar 1 2014",
+      'DisclosureDate' => '2014-03-01',
       'DefaultTarget'  => 0))
   end
 

@@ -33,9 +33,13 @@ class OpenPipe < OpenFile
   end
 
   def write(data, offset = 0)
+
     case self.mode
 
     when 'trans'
+      if self.client.is_a?(RubySMB::Client)
+        raise NotImplementedError, '\'trans\' mode is not supported by RubySMB'
+      end
       write_trans(data, offset)
     when 'rw'
       super(data, offset)
@@ -49,6 +53,41 @@ class OpenPipe < OpenFile
     doff = ack['Payload'].v['DataOffset']
     dlen = ack['Payload'].v['DataCount']
     @buff << ack.to_s[4+doff, dlen]
+  end
+
+  def peek_ruby_smb
+    self.client.last_file.peek_available
+  end
+
+  # This will only return the bytes available and does not receive available data
+  STATUS_BUFFER_OVERFLOW = 0x80000005
+  STATUS_PIPE_BROKEN     = 0xc000014b
+  def peek_rex_smb
+    setup = [0x23, self.file_id].pack('vv')
+    # Must ignore errors since we expect STATUS_BUFFER_OVERFLOW
+    pkt = self.client.trans_maxzero('\\PIPE\\', '', '', 2, setup, false, true, true)
+    if pkt['Payload']['SMB'].v['ErrorClass'] == STATUS_PIPE_BROKEN
+      raise IOError
+    end
+    avail = 0
+    begin
+      avail = pkt.to_s[pkt['Payload'].v['ParamOffset']+4, 2].unpack('v')[0]
+    rescue
+    end
+
+    if (avail == 0) and (pkt['Payload']['SMB'].v['ErrorClass'] == STATUS_BUFFER_OVERFLOW)
+      avail = self.client.default_max_buffer_size
+    end
+    avail
+  end
+
+  def peek
+    if self.client.is_a?(RubySMB::Client)
+      avail = peek_ruby_smb
+    else
+      avail = peek_rex_smb
+    end
+    avail
   end
 end
 end

@@ -1,9 +1,8 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
 require 'net/ssh'
 
 class MetasploitModule < Msf::Auxiliary
@@ -26,13 +25,8 @@ class MetasploitModule < Msf::Auxiliary
         ],
       'Platform'       => 'unix',
       'Arch'           => ARCH_CMD,
-      'Targets'        =>
-        [
-          ['Apache Karaf', {}],
-        ],
       'Privileged'     => true,
-      'DisclosureDate' => "Feb 9 2016",
-      'DefaultTarget'  => 0))
+      'DisclosureDate' => '2016-02-09'))
 
     register_options(
       [
@@ -71,13 +65,14 @@ class MetasploitModule < Msf::Auxiliary
   def do_login(user, pass, ip)
     factory = ssh_socket_factory
     opts = {
-      auth_methods:    ['password'],
-      port:            rport,
-      config:          false,
-      use_agent:       false,
-      password:        pass,
-      proxy:           factory,
-      non_interactive: true
+      :auth_methods    => ['password'],
+      :port            => rport,
+      :config          => false,
+      :use_agent       => false,
+      :password        => pass,
+      :proxy           => factory,
+      :non_interactive => true,
+      :verify_host_key => :never
     }
 
     opts.merge!(verbose: :debug) if datastore['SSH_DEBUG']
@@ -87,7 +82,7 @@ class MetasploitModule < Msf::Auxiliary
         Net::SSH.start(ip, user, opts)
       end
       if ssh
-        print_good("#{ip}:#{rport}- Login Successful with '#{user}:#{pass}'")
+        print_good("#{ip}:#{rport} - Login Successful ('#{user}:#{pass})'")
       else
         print_error "#{ip}:#{rport} - Unknown error"
       end

@@ -1,12 +1,9 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Exploit::Remote::HttpClient
   include Msf::Auxiliary::WmapScanServer
   include Msf::Auxiliary::Report
@@ -17,7 +14,9 @@ class MetasploitModule < Msf::Auxiliary
       'Name'           => 'Drupal Views Module Users Enumeration',
       'Description'    => %q{
         This module exploits an information disclosure vulnerability in the 'Views'
-        module of Drupal, brute-forcing the first 10 usernames from 'a' to 'z'
+        module of Drupal, brute-forcing the first 10 usernames from 'a' to 'z'.
+        Drupal 6 with 'Views' module <= 6.x-2.11 are vulnerable.  Drupal does not
+        consider disclosure of usernames as a weakness.
       },
       'Author'         =>
         [
@@ -29,14 +28,15 @@ class MetasploitModule < Msf::Auxiliary
       'References'     =>
         [
           ['URL', 'http://www.madirish.net/node/465'],
+          ['URL', 'https://www.drupal.org/node/1004778'],
         ],
-      'DisclosureDate' => 'Jul 2 2010'
+      'DisclosureDate' => '2010-07-02'
     ))
 
     register_options(
       [
         OptString.new('TARGETURI', [true, "Drupal Path", "/"])
-      ], self.class)
+      ])
   end
 
   def base_uri
@@ -112,7 +112,7 @@ class MetasploitModule < Msf::Auxiliary
         begin
           user_list = JSON.parse(res.body)
         rescue JSON::ParserError => e
-          elog("#{e.class} #{e.message}\n#{e.backtrace * "\n"}")
+          elog('Exception encountered parsing JSON response', error: e)
           return []
         end
         if user_list.empty?
@@ -149,5 +149,4 @@ class MetasploitModule < Msf::Auxiliary
     )
     print_status("Usernames stored in: #{p}")
   end
-
 end

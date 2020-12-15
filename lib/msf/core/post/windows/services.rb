@@ -1,5 +1,4 @@
 # -*- coding: binary -*-
-require 'msf/core/post/windows/registry'
 
 module Msf
 class Post
@@ -78,7 +77,7 @@ module Services
     # );
     manag = advapi32.OpenSCManagerA(machine_str,nil,access)
     if (manag["return"] == 0)
-      raise RuntimeError.new("Unable to open service manager: #{manag["ErrorMessage"]}")
+      raise "Unable to open service manager: #{manag["ErrorMessage"]}"
     end
 
     if (block_given?)
@@ -115,7 +114,7 @@ module Services
   def open_service_handle(manager, name, access)
     handle = advapi32.OpenServiceA(manager, name, access)
     if (handle["return"] == 0)
-      raise RuntimeError.new("Could not open service. OpenServiceA error: #{handle["ErrorMessage"]}")
+      raise "Could not open service. OpenServiceA error: #{handle["ErrorMessage"]}"
     end
 
     if (block_given?)
@@ -250,6 +249,29 @@ module Services
   end
 
   #
+  # Check if the specified Windows service exists.
+  #
+  # @param name [String] The target service's name (not to be confused
+  #   with Display Name). Case sensitive.
+  #
+  # @return [Boolean]
+  #
+  def service_exists?(service)
+    srv_info = service_info(service)
+
+    if srv_info.nil?
+      vprint_error('Unable to enumerate Windows services')
+      return false
+    end
+
+    if srv_info && srv_info[:display].empty?
+      return false
+    end
+
+    true
+  end
+
+  #
   # Changes a given service startup mode, name must be provided and the mode.
   #
   # Mode is a string with either auto, manual or disable for the
@@ -267,7 +289,7 @@ module Services
         when "manual" then startup_number   = START_TYPE_MANUAL
         when "disable" then startup_number  = START_TYPE_DISABLED
         else
-          raise RuntimeError, "Invalid Startup Mode: #{mode}"
+          raise "Invalid Startup Mode: #{mode}"
       end
     end
 
@@ -453,7 +475,7 @@ module Services
         status = advapi32.QueryServiceStatus(service_handle,28)
 
         if (status["return"] == 0)
-          raise RuntimeError.new("Could not query service. QueryServiceStatus error: #{status["ErrorMessage"]}")
+          raise "Could not query service. QueryServiceStatus error: #{status["ErrorMessage"]}"
         else
           ret = parse_service_status_struct(status['lpServiceStatus'])
         end
@@ -485,7 +507,7 @@ module Services
         vprint_good("[#{name}] Service started")
         return true
       else
-        raise RuntimeError, status
+        raise status
       end
     rescue RuntimeError => s
       if tried

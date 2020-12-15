@@ -14,7 +14,7 @@
   5. Do: `run`
   6. You will hopefully see something similar to, followed by a session:
 
-  ````[+] SSH - Success: 'msfadmin:msfadmin' 'uid=1000(msfadmin) gid=1000(msfadmin) groups=4(adm),20(dialout),24(cdrom),25(floppy),29(audio),30(dip),44(video),46(plugdev),107(fuse),111(lpadmin),112(admin),119(sambashare),1000(msfadmin) Linux metasploitable 2.6.24-16-server #1 SMP Thu Apr 10 13:58:00 UTC 2008 i686 GNU/Linux '```
+  ```[+] SSH - Success: 'msfadmin:msfadmin' 'uid=1000(msfadmin) gid=1000(msfadmin) groups=4(adm),20(dialout),24(cdrom),25(floppy),29(audio),30(dip),44(video),46(plugdev),107(fuse),111(lpadmin),112(admin),119(sambashare),1000(msfadmin) Linux metasploitable 2.6.24-16-server #1 SMP Thu Apr 10 13:58:00 UTC 2008 i686 GNU/Linux '```
 
 ## Options
 
@@ -32,7 +32,7 @@
 
   **RHOSTS**
   
-  Either a comma space (`, `) separated list of hosts, or a file containing list of hosts, one per line.  File Example: `file://root/ssh_hosts.lst`, list example: `192.168.0.1` or `192.168.0.1, 192.168.0.2`
+  Either a comma space (`, `) separated list of hosts, or a file containing list of hosts, one per line.  File Example: `file:/root/ssh_hosts.lst`, list example: `192.168.0.1` or `192.168.0.1, 192.168.0.2`
 
   **STOP_ON_SUCCESS**
   
@@ -104,8 +104,8 @@ msf auxiliary(ssh_login) > cat /root/ssh_hosts.lst
 192.168.2.137
 192.168.2.35
 192.168.2.46
-msf auxiliary(ssh_login) > set rhosts file://root/ssh_hosts.lst
-rhosts => file://root/ssh_hosts.lst
+msf auxiliary(ssh_login) > set rhosts file:/root/ssh_hosts.lst
+rhosts => file:/root/ssh_hosts.lst
 msf auxiliary(ssh_login) > set verbose false
 verbose => false
 msf auxiliary(ssh_login) > set threads 4

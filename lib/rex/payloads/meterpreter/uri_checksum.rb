@@ -1,5 +1,4 @@
 # -*- coding: binary -*-
-require 'msf/core/payload/uuid'
 
 module Rex
   module Payloads
@@ -66,7 +65,7 @@ module Rex
         # @param len [Integer] An optional URI length value, including the leading slash
         # @return [String] The URI string for connections
         def generate_uri_uuid(sum, uuid, len=nil)
-          curl_uri_len = URI_CHECKSUM_UUID_MIN_LEN+rand(URI_CHECKSUM_CONN_MAX_LEN-URI_CHECKSUM_UUID_MIN_LEN)
+          curl_uri_len = URI_CHECKSUM_UUID_MIN_LEN + rand(URI_CHECKSUM_CONN_MAX_LEN - URI_CHECKSUM_UUID_MIN_LEN)
           curl_prefix  = uuid.to_uri
 
           if len

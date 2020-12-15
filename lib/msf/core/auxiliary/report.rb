@@ -23,7 +23,8 @@ module Auxiliary::Report
 
   def create_cracked_credential(opts={})
     if active_db?
-      super(opts)
+      opts = { :task_id => mytask.id }.merge(opts) if mytask
+      framework.db.create_cracked_credential(opts)
     elsif !db_warning_given?
       vprint_warning('No active DB -- Credential data will not be saved!')
     end
@@ -31,7 +32,8 @@ module Auxiliary::Report
 
   def create_credential(opts={})
     if active_db?
-      super(opts)
+      opts = { :task_id => mytask.id }.merge(opts) if mytask
+      framework.db.create_credential(opts)
     elsif !db_warning_given?
       vprint_warning('No active DB -- Credential data will not be saved!')
     end
@@ -39,7 +41,17 @@ module Auxiliary::Report
 
   def create_credential_login(opts={})
     if active_db?
-      super(opts)
+      opts = { :task_id => mytask.id }.merge(opts) if mytask
+      framework.db.create_credential_login(opts)
+    elsif !db_warning_given?
+      vprint_warning('No active DB -- Credential data will not be saved!')
+    end
+  end
+
+  def create_credential_and_login(opts={})
+    if active_db?
+      opts = { :task_id => mytask.id }.merge(opts) if mytask
+      framework.db.create_credential_and_login(opts)
     elsif !db_warning_given?
       vprint_warning('No active DB -- Credential data will not be saved!')
     end
@@ -47,7 +59,8 @@ module Auxiliary::Report
 
   def invalidate_login(opts={})
     if active_db?
-      super(opts)
+      opts = { :task_id => mytask.id }.merge(opts) if mytask
+      framework.db.invalidate_login(opts)
     elsif !db_warning_given?
       vprint_warning('No active DB -- Credential data will not be saved!')
     end
@@ -80,7 +93,7 @@ module Auxiliary::Report
   end
 
   def mytask
-    if self[:task]
+    if self.respond_to?(:[]) && self[:task]
       return self[:task].record
     elsif @task && @task.class == Mdm::Task
       return @task
@@ -274,7 +287,29 @@ module Auxiliary::Report
         :workspace => myworkspace,
         :task => mytask
     }.merge(opts)
-    framework.db.report_vuln(opts)
+    vuln = framework.db.report_vuln(opts)
+
+    # add vuln attempt audit details here during report
+
+    timestamp  = opts[:timestamp]
+    username   = opts[:username]
+    mname      = self.fullname # use module name when reporting attempt for correlation
+
+    # report_vuln is only called in an identified case, consider setting value reported here
+    attempt_info = {
+        :vuln_id      => vuln.id,
+        :attempted_at => timestamp || Time.now.utc,
+        :exploited    => false,
+        :fail_detail  => 'vulnerability identified',
+        :fail_reason  => 'Untried', # Mdm::VulnAttempt::Status::UNTRIED, avoiding direct dependency on Mdm, used elsewhere in this module
+        :module       => mname,
+        :username     => username  || "unknown",
+    }
+
+    # TODO: figure out what opts are required and why the above logic doesn't match that of the db_manager method
+    framework.db.report_vuln_attempt(vuln, attempt_info)
+
+    vuln
   end
 
   # This will simply log a deprecation warning, since report_exploit()
@@ -368,7 +403,7 @@ module Auxiliary::Report
       ext = "txt"
     end
     # This method is available even if there is no database, don't bother checking
-    host = framework.db.normalize_host(host)
+    host = Msf::Util::Host.normalize_host(host)
 
     ws = (db ? myworkspace.name[0,16] : 'default')
     name =
@@ -395,6 +430,7 @@ module Auxiliary::Report
       conf[:workspace] = myworkspace
       conf[:name] = filename if filename
       conf[:info] = info if info
+      conf[:data] = data unless data.nil?
 
       if service and service.kind_of?(::Mdm::Service)
         conf[:service] = service if service
@@ -412,7 +448,7 @@ module Auxiliary::Report
   # module, such as files from fileformat exploits. (TODO: actually
   # implement this on file format modules.)
   #
-  # +filenmae+ is the local file name.
+  # +filename+ is the local file name.
   #
   # +data+ is the actual contents of the file
   #
@@ -484,6 +520,7 @@ module Auxiliary::Report
     end
     cred_opts = opts
     cred_opts = opts.merge(:workspace => myworkspace)
+    cred_opts = { :task_id => mytask.id }.merge(cred_opts) if mytask
     cred_host = myworkspace.hosts.find_by_address(cred_opts[:host])
     unless opts[:port]
       possible_services = myworkspace.services.where(host_id: cred_host[:id], name: cred_opts[:sname])

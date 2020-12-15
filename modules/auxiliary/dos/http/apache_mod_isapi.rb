@@ -1,12 +1,9 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Exploit::Remote::Tcp
   include Msf::Auxiliary::Dos
 
@@ -51,7 +48,7 @@ class MetasploitModule < Msf::Auxiliary
           [ 'URL', 'http://www.senseofsecurity.com.au/advisories/SOS-10-002' ],
           [ 'EDB', '11650' ]
         ],
-      'DisclosureDate' => 'Mar 05 2010'))
+      'DisclosureDate' => '2010-03-05'))
 
     register_options([
       Opt::RPORT(80),
@@ -93,5 +90,4 @@ class MetasploitModule < Msf::Auxiliary
     disconnect
 
   end
-
 end

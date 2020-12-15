@@ -1,12 +1,9 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Auxiliary::Scanner
   include Msf::Auxiliary::Report
 
@@ -37,7 +34,7 @@ class MetasploitModule < Msf::Auxiliary
           [ 'URL', 'https://web.nvd.nist.gov/view/vuln/detail?vulnId=CVE-2016-6415' ],
           [ 'URL', 'https://musalbas.com/2016/08/18/equation-group-benigncertain.html' ]
         ],
-      'DisclosureDate' => 'Sep 29 2016'
+      'DisclosureDate' => '2016-09-29'
     ))
 
     register_options(
@@ -45,7 +42,7 @@ class MetasploitModule < Msf::Auxiliary
         Opt::RPORT(500),
         OptPath.new('PACKETFILE',
           [ true, 'The ISAKMP packet file', File.join(Msf::Config.data_directory, 'exploits', 'cve-2016-6415', 'sendpacket.raw') ])
-      ], self.class)
+      ])
   end
 
   def run_host(ip)
@@ -96,5 +93,4 @@ class MetasploitModule < Msf::Auxiliary
       udp_sock.close
     end
   end
-
 end

@@ -1,15 +1,11 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
-require 'msf/core/handler/reverse_http'
-require 'msf/core/payload/windows/x64/reverse_http'
-
 module MetasploitModule
 
-  CachedSize = 501
+  CachedSize = 528
 
   include Msf::Payload::Stager
   include Msf::Payload::Windows
@@ -27,5 +23,4 @@ module MetasploitModule
       'Convention'  => 'sockrdi http',
       'Stager'      => { 'Payload' => '' }))
   end
-
 end

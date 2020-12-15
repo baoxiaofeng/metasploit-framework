@@ -1,12 +1,8 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-
-require 'msf/core'
-require 'msf/core/payload/php'
-require 'msf/core/handler/bind_tcp'
 require 'msf/base/sessions/command_shell'
 
 
@@ -28,8 +24,8 @@ module MetasploitModule
       ))
     register_options(
       [
-        OptString.new('CMD', [ true, "The command string to execute", 'echo "toor::0:0:::/bin/bash">/etc/passwd' ]),
-      ], self.class)
+        OptString.new('CMD', [ true, "The command string to execute" ]),
+      ])
   end
 
   def php_exec_cmd
@@ -51,5 +47,4 @@ module MetasploitModule
   def generate
     return php_exec_cmd
   end
-
 end

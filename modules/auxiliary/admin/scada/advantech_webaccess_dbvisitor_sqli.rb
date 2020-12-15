@@ -1,13 +1,11 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
 
-require 'msf/core'
 require 'rexml/document'
 
 class MetasploitModule < Msf::Auxiliary
-
   include Msf::Exploit::Remote::HttpClient
   include Msf::Auxiliary::Report
   include REXML
@@ -35,14 +33,14 @@ class MetasploitModule < Msf::Auxiliary
           'juan vazquez' # Metasploit module
         ],
       'License'        => MSF_LICENSE,
-      'DisclosureDate' => "Apr 08 2014"
+      'DisclosureDate' => '2014-04-08'
     ))
 
     register_options(
       [
         OptString.new("TARGETURI", [true, 'The path to the BEMS Web Site', '/BEMS']),
         OptString.new("WEB_DATABASE", [true, 'The path to the bwCfg.mdb database in the target', "C:\\WebAccess\\Node\\config\\bwCfg.mdb"])
-      ], self.class)
+      ])
   end
 
   def build_soap(injection)
@@ -169,7 +167,7 @@ class MetasploitModule < Msf::Auxiliary
 
       begin
         @plain_passwords[i].encode("ISO-8859-1").to_s
-      rescue Encoding::UndefinedConversionError
+      rescue ::Encoding::UndefinedConversionError
         chars = @plain_passwords[i].unpack("C*")
         @plain_passwords[i] = "0x#{chars.collect {|c| c.to_s(16)}.join(", 0x")}"
         @plain_passwords[i] << " (ISO-8859-1 hex chars)"
@@ -319,6 +317,5 @@ class MetasploitModule < Msf::Auxiliary
 
     result
   end
-
 end
 

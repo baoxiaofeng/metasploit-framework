@@ -18,4 +18,13 @@ if [[ -z "$MSF_PATH" ]]; then
 fi
 
 cd $MSF_PATH
-docker-compose run --rm --service-ports ms ./msfconsole -r docker/msfconsole.rc "$@"
+
+PARAMS="$@"
+
+if [[ $PARAMS == *"--rebuild"* ]]; then
+  echo "Rebuilding image"
+  docker-compose build
+  exit $?
+fi
+
+docker-compose run --rm --service-ports -e MSF_UID=$(id -u) -e MSF_GID=$(id -g) ms ./msfconsole -r docker/msfconsole.rc "$PARAMS"

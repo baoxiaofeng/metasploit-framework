@@ -2,6 +2,7 @@
 module Rex
 module Proto
 module SMB
+
 class SimpleClient
 
 require 'rex/text'
@@ -14,6 +15,7 @@ require 'rex/proto/smb/utils'
 require 'rex/proto/smb/client'
 require 'rex/proto/smb/simpleclient/open_file'
 require 'rex/proto/smb/simpleclient/open_pipe'
+require 'ruby_smb'
 
 # Some short-hand class aliases
 CONST = Rex::Proto::SMB::Constants
@@ -23,17 +25,39 @@ XCEPT = Rex::Proto::SMB::Exceptions
 EVADE = Rex::Proto::SMB::Evasions
 
 # Public accessors
-attr_accessor :last_error
+attr_accessor :last_error, :server_max_buffer_size
 
 # Private accessors
-attr_accessor :socket, :client, :direct, :shares, :last_share
+attr_accessor :socket, :client, :direct, :shares, :last_share, :versions
 
   # Pass the socket object and a boolean indicating whether the socket is netbios or cifs
-  def initialize(socket, direct = false)
+  def initialize(socket, direct = false, versions = [1, 2, 3], always_encrypt: true, backend: nil)
     self.socket = socket
     self.direct = direct
-    self.client = Rex::Proto::SMB::Client.new(socket)
-    self.shares = { }
+    self.versions = versions
+    self.shares = {}
+    self.server_max_buffer_size = 1024 # 4356 (workstation) or 16644 (server) expected
+
+    if (self.versions == [1] && backend.nil?) || backend == :rex
+      self.client = Rex::Proto::SMB::Client.new(socket)
+    elsif (backend.nil? || backend == :ruby_smb)
+      self.client = RubySMB::Client.new(RubySMB::Dispatcher::Socket.new(self.socket, read_timeout: 60),
+                                        username: '',
+                                        password: '',
+                                        smb1: self.versions.include?(1),
+                                        smb2: self.versions.include?(2),
+                                        smb3: self.versions.include?(3),
+                                        always_encrypt: always_encrypt
+                    )
+      self.client.evasion_opts = {
+        # Padding is performed between packet headers and data
+        'pad_data' => EVADE::EVASION_NONE,
+        # File path padding is performed on all open/create calls
+        'pad_file' => EVADE::EVASION_NONE,
+        # Modify the \PIPE\ string in trans_named_pipe calls
+        'obscure_trans_pipe' => EVADE::EVASION_NONE,
+      }
+    end
   end
 
   def login(name = '', user = '', pass = '', domain = '',
@@ -55,7 +79,15 @@ attr_accessor :socket, :client, :direct, :shares, :last_share
       self.client.use_lanman_key =  use_lanman_key
       self.client.send_ntlm = send_ntlm
 
-      self.client.negotiate
+      dlog("SMB version(s) to negotiate: #{self.versions}")
+      ok = self.client.negotiate
+      dlog("Negotiated SMB version: SMB#{negotiated_smb_version}")
+
+      if self.client.is_a?(RubySMB::Client)
+        self.server_max_buffer_size = self.client.server_max_buffer_size
+      else
+        self.server_max_buffer_size = ok['Payload'].v['MaxBuff']
+      end
 
       # Disable NTLMv2 Session for Windows 2000 (breaks authentication on some systems)
       # XXX: This in turn breaks SMB auth for Windows 2000 configured to enforce NTLMv2
@@ -70,7 +102,7 @@ attr_accessor :socket, :client, :direct, :shares, :last_share
       # always a string
       pass ||= ''
 
-      ok = self.client.session_setup(user, pass, domain)
+      res = self.client.session_setup(user, pass, domain)
     rescue ::Interrupt
       raise $!
     rescue ::Exception => e
@@ -80,6 +112,15 @@ attr_accessor :socket, :client, :direct, :shares, :last_share
         n.error_code   = e.error_code
         n.error_reason = e.get_error(e.error_code)
       end
+      raise n
+    end
+
+    # RubySMB does not raise any exception if the Session Setup fails
+    if self.client.is_a?(RubySMB::Client) && res != WindowsError::NTStatus::STATUS_SUCCESS
+      n = XCEPT::LoginError.new
+      n.source       = res
+      n.error_code   = res.value
+      n.error_reason = res.name
       raise n
     end
 
@@ -133,41 +174,87 @@ attr_accessor :socket, :client, :direct, :shares, :last_share
 
   def connect(share)
     ok = self.client.tree_connect(share)
-    tree_id = ok['Payload']['SMB'].v['TreeID']
+
+    if self.client.is_a?(RubySMB::Client)
+      tree_id = ok.id
+    else
+      tree_id = ok['Payload']['SMB'].v['TreeID']
+    end
+
     self.shares[share] = tree_id
     self.last_share = share
   end
 
   def disconnect(share)
-    ok = self.client.tree_disconnect(self.shares[share])
-    self.shares.delete(share)
+    if self.shares[share]
+      ok = self.client.tree_disconnect(self.shares[share])
+      self.shares.delete(share)
+      return ok
+    end
+    false
   end
 
+  def open(path, perm, chunk_size = 48000, read: true, write: false)
+    if self.client.is_a?(RubySMB::Client)
+      mode = 0
+      if perm.include?('c')
+        if perm.include?('o')
+          mode = RubySMB::Dispositions::FILE_OPEN_IF
+        elsif perm.include?('t')
+          mode = RubySMB::Dispositions::FILE_OVERWRITE_IF
+        else
+          mode = RubySMB::Dispositions::FILE_CREATE
+        end
+      else
+        if perm.include?('o')
+          mode = RubySMB::Dispositions::FILE_OPEN
+        elsif perm.include?('t')
+          mode = RubySMB::Dispositions::FILE_OVERWRITE
+        end
+      end
 
-  def open(path, perm, chunk_size = 48000)
-    mode   = UTILS.open_mode_to_mode(perm)
-    access = UTILS.open_mode_to_access(perm)
+      file_id = self.client.open(path, mode, read: true, write: write || perm.include?('w'))
+    else
+      mode = UTILS.open_mode_to_mode(perm)
+      access = UTILS.open_mode_to_access(perm)
 
-    ok = self.client.open(path, mode, access)
-    file_id = ok['Payload'].v['FileID']
-    fh = OpenFile.new(self.client, path, self.client.last_tree_id, file_id)
+      ok = self.client.open(path, mode, access)
+      file_id = ok['Payload'].v['FileID']
+    end
+
+    fh = OpenFile.new(self.client, path, self.client.last_tree_id, file_id, self.versions)
     fh.chunk_size = chunk_size
     fh
   end
 
   def delete(*args)
-    self.client.delete(*args)
+    if self.client.is_a?(RubySMB::Client)
+      self.client.delete(args[0])
+    else
+      self.client.delete(*args)
+    end
   end
 
-  def create_pipe(path, perm = 'c')
+  def create_pipe(path, perm = 'o')
     disposition = UTILS.create_mode_to_disposition(perm)
     ok = self.client.create_pipe(path, disposition)
-    file_id = ok['Payload'].v['FileID']
-    fh = OpenPipe.new(self.client, path, self.client.last_tree_id, file_id)
+
+    if self.client.is_a?(RubySMB::Client)
+      file_id = ok
+    else
+      file_id = ok['Payload'].v['FileID']
+    end
+
+    fh = OpenPipe.new(self.client, path, self.client.last_tree_id, file_id, self.versions)
   end
 
   def trans_pipe(fid, data, no_response = nil)
     client.trans_named_pipe(fid, data, no_response)
+  end
+
+  def negotiated_smb_version
+    return 1 if self.client.is_a?(Rex::Proto::SMB::Client)
+    self.client.negotiated_smb_version || -1
   end
 
 end
